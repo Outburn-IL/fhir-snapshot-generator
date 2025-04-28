@@ -18,7 +18,7 @@ const roundTripTest = async (fpe: FhirPackageExplorer, sd: string) => {
   };
 };
 
-describe.skip('Snapshot Tree Round-trip', () => {
+describe('Snapshot Tree Round-trip', () => {
   let fpe: FhirPackageExplorer;
   const cachePath = './test/.test-cache';
   const context = ['il.core.fhir.r4#0.17.0', 'fsg.test.pkg#0.1.0'];
@@ -44,29 +44,32 @@ describe.skip('Snapshot Tree Round-trip', () => {
     });
   }, 240000); // 4min timeout for setup
     
-  it('should get identical snapshot to original after round-trip', async () => {
-    const listOfSd = [
-      'ComplexLiberalExtension',
-      'ext-hearing-loss',
-      'fixed-system-identifier',
-      'fixed-system-patient-identifier',
-      'FixedSystemPatientIdentifierProfile',
-      'OrganizationBasicProfile',
-      'PractitionerQualificationSlices',
-      'SimpleBinaryTypeExtension',
-      'SimpleCardinalityPatient',
-      'SimpleLiberalExtension',
-      'SimpleMonopolyExtension',
-      'bp',
-      'il-core-patient',
-      'il-core-practitioner',
-      'il-core-bp',
-      'MedicationRequest',
-    ];
-    for (const sd of listOfSd) {
+  const listOfSd = [
+    'ComplexLiberalExtension',
+    'ext-hearing-loss',
+    'fixed-system-identifier',
+    'fixed-system-patient-identifier',
+    'FixedSystemPatientIdentifierProfile',
+    'OrganizationBasicProfile',
+    'PractitionerQualificationSlices',
+    'SimpleBinaryTypeExtension',
+    'SimpleCardinalityPatient',
+    'SimpleLiberalExtension',
+    'SimpleMonopolyExtension',
+    'bp',
+    'il-core-patient',
+    'il-core-practitioner',
+    'il-core-bp',
+    'MedicationRequest',
+    'PatientIdentifierDeepDiff'
+  ];
+
+  for (const sd of listOfSd) {
+    it(`should get identical snapshot to original after round-trip for ${sd}`, async () => {
       const result = await roundTripTest(fpe, sd);
       const { compare, roundtrip } = result;
       expect(roundtrip).toEqual(compare);
     }
-  });
+    , 240000);
+  } // 4min timeout for this test
 },480000); // 8min timeout for all tests

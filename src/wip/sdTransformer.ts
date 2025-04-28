@@ -44,20 +44,19 @@ export const buildTreeFromSnapshot = (snapshot: ElementDefinition[]): FhirTreeNo
     };
 
     if (nodeType === 'array' || nodeType === 'poly' || nodeType === 'resliced') {
-      // Always create the @master@ group immediately for arrays/polys/resliceables:
+      // Always create the headslice immediately for arrays/polys/resliceables:
       const masterGroup: FhirTreeNode = {
-        id: `${element.id}:@master@`,
+        id: element.id,
         path: element.path,
-        idSegments: [...idSegments.slice(0, -1), idSegments.at(-1)! + ':@master@'],
+        idSegments,
         pathSegments,
-        nodeType: 'slice',
-        sliceName: '@master@',
-        definition: element, // The shape definition belongs here
+        nodeType: 'headslice', // This is a special type for the master group
+        definition: element,
         children: []
       };
       node.children.push(masterGroup);
     } else {
-      node.definition = element; // Only element and group nodes hold definitions
+      node.definition = element; // Only element and slice nodes hold definitions
     }
 
     return node;
@@ -80,12 +79,12 @@ export const buildTreeFromSnapshot = (snapshot: ElementDefinition[]): FhirTreeNo
     const newNode = createNode(element);
 
     if (parentNode.nodeType === 'array' || parentNode.nodeType === 'poly' || parentNode.nodeType === 'resliced') {
-      const masterGroup = parentNode.children.find(c => c.sliceName === '@master@');
+      const masterGroup = parentNode.children[0];
       if (!masterGroup) {
-        throw new Error(`@master@ group missing under ${parentNode.id}, should have been created immediately`);
+        throw new Error(`headslice missing under ${parentNode.id}, should have been created immediately`);
       }
       masterGroup.children.push(newNode);
-    } else if (parentNode.nodeType === 'slice' || parentNode.nodeType === 'element') {
+    } else if (parentNode.nodeType === 'slice' || parentNode.nodeType === 'element' || parentNode.nodeType === 'headslice') {
       parentNode.children.push(newNode);
     } else {
       throw new Error(`Unsupported parent node type: ${parentNode.nodeType} for parent ${parentNode.id}`);
@@ -103,7 +102,7 @@ export const flattenTreeToSnapshot = (tree: FhirTreeNode): ElementDefinition[] =
 
   function visit(node: FhirTreeNode) {
     // Only output nodes that hold a definition
-    if (node.nodeType === 'element' || node.nodeType === 'slice') {
+    if (node.nodeType === 'element' || node.nodeType === 'slice' || node.nodeType === 'headslice') {
       if (!node.definition) {
         throw new Error(`Node ${node.id} of type ${node.nodeType} is missing its definition`);
       }

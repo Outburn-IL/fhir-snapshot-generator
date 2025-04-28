@@ -15,16 +15,21 @@ export const applyDiffToTree = async (
     delete clonedTree.definition.extension;
   }
 
+  function isNodeSliceable(node: FhirTreeNode): boolean {
+    return node.nodeType === 'array' || node.nodeType === 'poly' || node.nodeType === 'resliced';
+  }
+
   function findMatchingNode(diffId: string, node: FhirTreeNode): FhirTreeNode | undefined {
+    logger?.(`Searching for matching node for diffId: ${diffId} in node: ${node.id}`);
     if (node.id === diffId) {
+      logger?.(`Found matching node: ${node.id}`);
       return node;
     }
-    if (
-      (node.nodeType === 'array' || node.nodeType === 'poly' || node.nodeType === 'resliced') &&
-      node.id === diffId
-    ) {
-      const masterGroup = node.children.find(c => c.sliceName === '@master@');
-      if (masterGroup) {
+    logger?.(`Node ${node.id} does not match diffId ${diffId}`);
+    if (isNodeSliceable(node)) {
+      logger?.(`Node ${node.id} is sliceable, checking master group...`);
+      const masterGroup = node.children[0];
+      if (masterGroup && masterGroup.id === diffId) {
         return masterGroup;
       }
     }
@@ -41,8 +46,8 @@ export const applyDiffToTree = async (
     if (node.definition) {
       return node;
     }
-    if (node.nodeType === 'array' || node.nodeType === 'poly' || node.nodeType === 'resliced') {
-      const masterGroup = node.children.find(c => c.sliceName === '@master@');
+    if (isNodeSliceable(node)) {
+      const masterGroup = node.children[0];
       if (masterGroup?.definition) {
         return masterGroup;
       }
@@ -51,7 +56,10 @@ export const applyDiffToTree = async (
   }
 
   async function expandNode(node: FhirTreeNode, diffById: Map<string, ElementDefinition>): Promise<void> {
-    const defTarget = node.definition ? node : node.children.find(c => c.sliceName === '@master@');
+    const defTarget = isNodeSliceable(node) ? node.children[0] : node;
+    
+    // if node has children - it is already expanded
+    if (defTarget.children.length > 0) return;
   
     if (!defTarget?.definition?.type || defTarget.definition.type.length === 0) {
       if (logger) logger(`Node '${node.id}' has no type to expand.`);
@@ -71,8 +79,8 @@ export const applyDiffToTree = async (
     const expandedSubtree = buildTreeFromSnapshot(rewrittenSnapshot);
   
     const insertionTarget =
-      node.nodeType === 'array' || node.nodeType === 'poly' || node.nodeType === 'resliced'
-        ? node.children.find(c => c.sliceName === '@master@')
+      isNodeSliceable(node)
+        ? node.children[0] // Insert into the master group of the sliceable node
         : node;
   
     if (!insertionTarget) {
@@ -88,7 +96,7 @@ export const applyDiffToTree = async (
     // 🟢 Only expand children if the diff contains their descendants:
     for (const child of insertionTarget.children) {
       if (shouldExpandNode(child, diffById)) {
-        const childDefTarget = child.definition ? child : child.children.find(c => c.sliceName === '@master@');
+        const childDefTarget = child.definition ? child : child.children[0];
         if (childDefTarget?.definition?.type?.length) {
           await expandNode(child, diffById);
         }

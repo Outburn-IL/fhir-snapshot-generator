@@ -43,7 +43,7 @@
     "url": "git+https://github.com/Outburn-IL/fhir-snapshot-generator.git"
   },
   "dependencies": {
-    "fhir-package-explorer": "^1.0.2",
+    "fhir-package-explorer": "^1.0.3",
     "fs-extra": "^11.3.0",
     "jsonata": "^2.0.6"
   },

@@ -18,15 +18,16 @@ const getSnapshot = async (fpe: FhirPackageExplorer, idOrUrl: string): Promise<E
 };
 
 const applyDiffTest = async () => {
+  const profileId: string = 'ComplexLiberalExtension';
   const fpe = await FhirPackageExplorer.create({ cachePath, skipExamples: true, context: ['fsg.test.pkg#0.1.0'] });
-  const snapshot = await fpe.resolve({ id: 'PatientIdentifierDeepDiff', resourceType: 'StructureDefinition' });
+  const snapshot = await fpe.resolve({ id: profileId, resourceType: 'StructureDefinition' });
   const parentSnapshot = await fpe.resolve({ url: snapshot.baseDefinition, resourceType: 'StructureDefinition' });
   const tree = buildTreeFromSnapshot(parentSnapshot.snapshot.element);
   const resTree = await applyDiffToTree(tree, snapshot.differential.element, async (idOrUrl) => await getSnapshot(fpe, idOrUrl), (msg: string) => console.log(msg));
-  fs.writeJSONSync(path.join(fpe.getCachePath(), 'PatientIdentifierDeepDiff-applied-tree.json'), resTree, { spaces: 2 });
+  fs.writeJSONSync(path.join(fpe.getCachePath(), profileId+'-applied-tree.json'), resTree, { spaces: 2 });
   const flattenedSnapshot = flattenTreeToSnapshot(resTree);
-  fs.writeJSONSync(path.join(fpe.getCachePath(), 'PatientIdentifierDeepDiff-applied-snapshot.json'), flattenedSnapshot, { spaces: 2 });
-  fs.writeJSONSync(path.join(fpe.getCachePath(), 'PatientIdentifierDeepDiff-compare-snapshot.json'), snapshot.snapshot.element, { spaces: 2 });
+  fs.writeJSONSync(path.join(fpe.getCachePath(), profileId+'-applied-snapshot.json'), flattenedSnapshot, { spaces: 2 });
+  fs.writeJSONSync(path.join(fpe.getCachePath(), profileId+'-compare-snapshot.json'), snapshot.snapshot.element, { spaces: 2 });
   console.log('Done!');
   console.log('Output written to:', fpe.getCachePath());
 };

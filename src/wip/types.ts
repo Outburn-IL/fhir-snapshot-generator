@@ -54,6 +54,6 @@ export interface FhirTreeNode {
     children: FhirTreeNode[];
     idSegments: string[];
     pathSegments: string[];
-    nodeType: 'element' | 'array' | 'poly' | 'slice' | 'resliced'; // 'group' is used for slices
-    sliceName?: string; // Only for group nodes
+    nodeType: 'element' | 'array' | 'poly' | 'slice' | 'resliced' | 'headslice';
+    sliceName?: string;
   }

@@ -53,7 +53,7 @@ describe('Apply differential to parent snapshot', async () => {
   
 
   const listOfSd = [
-    // 'ComplexLiberalExtension',
+    'ComplexLiberalExtension',
     'ext-hearing-loss',
     'fixed-system-identifier',
     'fixed-system-patient-identifier',
