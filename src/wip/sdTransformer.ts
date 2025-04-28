@@ -1,4 +1,5 @@
 import { ElementDefinition, FhirTreeNode } from './types';
+import isNodeSliceable from './isNodeSliceable';
 
 const getNodeType = (element: ElementDefinition): 'array' | 'poly' | 'element' | 'resliced' | 'slice' => {
   if (element.id.endsWith('[x]')) {
@@ -43,7 +44,7 @@ export const buildTreeFromSnapshot = (snapshot: ElementDefinition[]): FhirTreeNo
       children: []
     };
 
-    if (nodeType === 'array' || nodeType === 'poly' || nodeType === 'resliced') {
+    if (isNodeSliceable(node)) {
       // Always create the headslice immediately for arrays/polys/resliceables:
       const masterGroup: FhirTreeNode = {
         id: element.id,
@@ -78,7 +79,7 @@ export const buildTreeFromSnapshot = (snapshot: ElementDefinition[]): FhirTreeNo
 
     const newNode = createNode(element);
 
-    if (parentNode.nodeType === 'array' || parentNode.nodeType === 'poly' || parentNode.nodeType === 'resliced') {
+    if (isNodeSliceable(parentNode)) {
       const masterGroup = parentNode.children[0];
       if (!masterGroup) {
         throw new Error(`headslice missing under ${parentNode.id}, should have been created immediately`);

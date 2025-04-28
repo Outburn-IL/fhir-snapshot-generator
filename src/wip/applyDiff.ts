@@ -1,5 +1,7 @@
 import { ElementDefinition, FhirTreeNode } from './types';
 import { buildTreeFromSnapshot } from './sdTransformer';
+import rewriteElementPaths from './rewriteElementPaths';
+import isNodeSliceable from './isNodeSliceable';
 
 export const applyDiffToTree = async (
   tree: FhirTreeNode,
@@ -13,10 +15,6 @@ export const applyDiffToTree = async (
 
   if (clonedTree.definition && clonedTree.definition.extension) {
     delete clonedTree.definition.extension;
-  }
-
-  function isNodeSliceable(node: FhirTreeNode): boolean {
-    return node.nodeType === 'array' || node.nodeType === 'poly' || node.nodeType === 'resliced';
   }
 
   function findMatchingNode(diffId: string, node: FhirTreeNode): FhirTreeNode | undefined {
@@ -66,7 +64,7 @@ export const applyDiffToTree = async (
     const oldPrefix = typeSnapshot[0].id;
     const newPrefix = node.id;
   
-    const rewrittenSnapshot = rewriteSnapshotElements(typeSnapshot, newPrefix, oldPrefix);
+    const rewrittenSnapshot = rewriteElementPaths(typeSnapshot, newPrefix, oldPrefix);
     const expandedSubtree = buildTreeFromSnapshot(rewrittenSnapshot);
   
     const insertionTarget =
@@ -103,28 +101,6 @@ export const applyDiffToTree = async (
       }
     }
     return false;
-  }
-
-  function rewriteSnapshotElements(
-    snapshot: ElementDefinition[],
-    newPrefix: string,
-    oldPrefix: string
-  ): ElementDefinition[] {
-    const oldPrefixDot = oldPrefix.endsWith('.') ? oldPrefix : oldPrefix + '.';
-    const newPrefixDot = newPrefix.endsWith('.') ? newPrefix : newPrefix + '.';
-  
-    const replace = (str: string) =>
-      str === oldPrefix
-        ? newPrefix
-        : str.startsWith(oldPrefixDot)
-          ? newPrefixDot + str.slice(oldPrefixDot.length)
-          : str;
-  
-    return snapshot.map(el => ({
-      ...el,
-      id: replace(el.id),
-      path: replace(el.path)
-    }));
   }
 
   // Main loop: iterate over diff elements and apply them to the tree
