@@ -43,16 +43,7 @@ export const applyDiffToTree = async (
   }
 
   function getDefinitionTarget(node: FhirTreeNode): FhirTreeNode | undefined {
-    if (node.definition) {
-      return node;
-    }
-    if (isNodeSliceable(node)) {
-      const masterGroup = node.children[0];
-      if (masterGroup?.definition) {
-        return masterGroup;
-      }
-    }
-    return undefined;
+    return isNodeSliceable(node) ? node.children[0] : node;
   }
 
   async function expandNode(node: FhirTreeNode, diffById: Map<string, ElementDefinition>): Promise<void> {
@@ -104,7 +95,6 @@ export const applyDiffToTree = async (
     }
   }
   
-  
   function shouldExpandNode(child: FhirTreeNode, diffById: Map<string, ElementDefinition>): boolean {
     const prefix = child.id + '.';
     for (const diffId of diffById.keys()) {
@@ -114,7 +104,6 @@ export const applyDiffToTree = async (
     }
     return false;
   }
-  
 
   function rewriteSnapshotElements(
     snapshot: ElementDefinition[],
@@ -138,7 +127,9 @@ export const applyDiffToTree = async (
     }));
   }
 
+  // Main loop: iterate over diff elements and apply them to the tree
   for (const [diffId, diffElement] of diffById.entries()) {
+    // first check for an exact match in the tree
     let matchingNode = findMatchingNode(diffId, clonedTree);
     let targetNode = matchingNode ? getDefinitionTarget(matchingNode) : undefined;
 
