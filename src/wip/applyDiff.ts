@@ -1,14 +1,15 @@
 import { ElementDefinition, FhirTreeNode } from './types';
-import { buildTreeFromSnapshot } from './sdTransformer';
-import rewriteElementPaths from './rewriteElementPaths';
-import isNodeSliceable from './isNodeSliceable';
+import { findMatchingNode } from './findMatchingNode';
+import { FhirPackageExplorer } from 'fhir-package-explorer';
+import { isNodeSliceable } from './isNodeSliceable';
 
 export const applyDiffToTree = async (
   tree: FhirTreeNode,
   diffElements: ElementDefinition[],
-  getSnapshot: (typeCode: string) => Promise<ElementDefinition[]>,
-  logger?: (message: string) => void
+  fpe: FhirPackageExplorer
 ): Promise<FhirTreeNode> => {
+  const logger = fpe.getLogger();
+  logger.info(`Applying diff to tree: ${tree.id}`);
   const clonedTree = structuredClone(tree);
   const diffById = new Map(diffElements.map(e => [e.id, e]));
   const appliedIds = new Set<string>();
@@ -17,142 +18,53 @@ export const applyDiffToTree = async (
     delete clonedTree.definition.extension;
   }
 
-  function findMatchingNode(diffId: string, node: FhirTreeNode): FhirTreeNode | undefined {
-    logger?.(`Searching for matching node for diffId: ${diffId} in node: ${node.id}`);
-    if (node.id === diffId) {
-      logger?.(`Found matching node: ${node.id}`);
-      return node;
-    }
-    logger?.(`Node ${node.id} does not match diffId ${diffId}`);
-    if (isNodeSliceable(node)) {
-      logger?.(`Node ${node.id} is sliceable, checking master group...`);
-      const masterGroup = node.children[0];
-      if (masterGroup && masterGroup.id === diffId) {
-        return masterGroup;
-      }
-    }
-    for (const child of node.children) {
-      const match = findMatchingNode(diffId, child);
-      if (match) {
-        return match;
-      }
-    }
-    return undefined;
-  }
-
-  function getDefinitionTarget(node: FhirTreeNode): FhirTreeNode | undefined {
-    return isNodeSliceable(node) ? node.children[0] : node;
-  }
-
-  async function expandNode(node: FhirTreeNode, diffById: Map<string, ElementDefinition>): Promise<void> {
-    const defTarget = isNodeSliceable(node) ? node.children[0] : node;
-    
-    // if node has children - it is already expanded
-    if (defTarget.children.length > 0) return;
-  
-    if (!defTarget?.definition?.type || defTarget.definition.type.length === 0) {
-      if (logger) logger(`Node '${node.id}' has no type to expand.`);
-      return;
-    }
-  
-    const typeCode = defTarget.definition.type[0].code;
-    const typeSnapshot = await getSnapshot(typeCode);
-    if (!typeSnapshot || typeSnapshot.length === 0) {
-      throw new Error(`Snapshot for type '${typeCode}' is empty or missing.`);
-    }
-  
-    const oldPrefix = typeSnapshot[0].id;
-    const newPrefix = node.id;
-  
-    const rewrittenSnapshot = rewriteElementPaths(typeSnapshot, newPrefix, oldPrefix);
-    const expandedSubtree = buildTreeFromSnapshot(rewrittenSnapshot);
-  
-    const insertionTarget =
-      isNodeSliceable(node)
-        ? node.children[0] // Insert into the master group of the sliceable node
-        : node;
-  
-    if (!insertionTarget) {
-      throw new Error(`Cannot find insertion point for expanded children under node '${node.id}'.`);
-    }
-  
-    insertionTarget.children.push(...expandedSubtree.children);
-  
-    if (logger) {
-      logger(`Expanded node '${node.id}' with children: ${expandedSubtree.children.map(c => c.id).join(', ')}`);
-    }
-  
-    // 🟢 Only expand children if the diff contains their descendants:
-    for (const child of insertionTarget.children) {
-      if (shouldExpandNode(child, diffById)) {
-        const childDefTarget = child.definition ? child : child.children[0];
-        if (childDefTarget?.definition?.type?.length) {
-          await expandNode(child, diffById);
-        }
-      }
-    }
-  }
-  
-  function shouldExpandNode(child: FhirTreeNode, diffById: Map<string, ElementDefinition>): boolean {
-    const prefix = child.id + '.';
-    for (const diffId of diffById.keys()) {
-      if (diffId.startsWith(prefix)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   // Main loop: iterate over diff elements and apply them to the tree
   for (const [diffId, diffElement] of diffById.entries()) {
-    // first check for an exact match in the tree
-    let matchingNode = findMatchingNode(diffId, clonedTree);
-    let targetNode = matchingNode ? getDefinitionTarget(matchingNode) : undefined;
-
-    if (!matchingNode) {
-      // 🚩 Recursive expansion logic: retry by walking up the path
-      const retryPathSegments = diffId.split('.');
-      while (retryPathSegments.length > 0 && !matchingNode) {
-        const parentPath = retryPathSegments.join('.');
-        const parentNode = findMatchingNode(parentPath, clonedTree);
-
-        if (parentNode) {
-          await expandNode(parentNode, diffById);
-
-          matchingNode = findMatchingNode(diffId, clonedTree);
-          targetNode = matchingNode ? getDefinitionTarget(matchingNode) : undefined;
-          if (matchingNode) break; // stop if matching worked after expansion
-        }
-
-        retryPathSegments.pop(); // walk up the chain
-      }
+    logger.info(`Applying diff element: ${diffId}`);
+    // first ensure that diffId's root is the same as the tree's root
+    // if not - throw an error. If it is, shift the diffId one level up.
+    let targetNode: FhirTreeNode | undefined;
+    const diffIdSegments = diffId.split('.');
+    if (clonedTree.id !== diffIdSegments[0]) {
+      throw new Error(`Diff id '${diffId}' does not match the tree root '${clonedTree.id}'.`);
     }
-
-    if (matchingNode && targetNode) {
-      appliedIds.add(diffId);
-
-      for (const key of Object.keys(diffElement) as Array<keyof ElementDefinition>) {
-        if (key === 'constraint') {
-          const baseConstraints = targetNode.definition!.constraint || [];
-          const diffConstraints = diffElement.constraint || [];
-          targetNode.definition!.constraint = [...baseConstraints, ...diffConstraints];
-        } else if (key === 'condition') {
-          const baseConditions = targetNode.definition!.condition || [];
-          const diffConditions = diffElement.condition || [];
-          const mergedConditions = [...baseConditions, ...diffConditions];
-          targetNode.definition!.condition = Array.from(new Set(mergedConditions));
-        } else {
-          if (diffElement[key] !== undefined) {
-            targetNode.definition![key] = diffElement[key];
-          }
-        }
-      }
+    if (diffIdSegments.length === 1) {
+      // this is a diff on the root of the tree. apply it directly to the root.
+      targetNode = clonedTree;
     } else {
-      const message = `Warning: Diff element with id '${diffId}' did not match any node in the tree.`;
-      if (logger) {
-        logger(message);
-      } else {
-        console.warn(message);
+    // remove the root id from the diffId
+      diffIdSegments.shift();
+      const diffIdShifted = diffIdSegments.join('.');
+      logger.info(`diffId shifted: ${diffIdShifted}`);
+      // find the matching node in the tree
+      targetNode = await findMatchingNode(diffIdShifted, clonedTree, fpe);
+    }
+    logger.info(`Found target node: ${targetNode?.id}`);
+    // if target is sliceable, we need to apply the diff to the headslice
+    if (isNodeSliceable(targetNode)) {
+      logger.info(`Target node is sliceable: ${targetNode.id}, applying diff to all slices`);
+      // get the headslice node
+      targetNode = targetNode.children[0]; // headslice is always the first child
+    }
+    appliedIds.add(diffId);
+
+    for (const key of Object.keys(diffElement) as string[]) {
+      if (key === 'constraint') {
+        logger.info(`Applying \`constraint\` to node: ${targetNode.id}`);
+        const baseConstraints = targetNode.definition!.constraint || [];
+        const diffConstraints = diffElement.constraint || [];
+        targetNode.definition!.constraint = [...baseConstraints, ...diffConstraints];
+      } else if (key === 'condition') {
+        logger.info(`Applying \`condition\` to node: ${targetNode.id}`);
+        const baseConditions = targetNode.definition!.condition || [];
+        const diffConditions = diffElement.condition || [];
+        const mergedConditions = [...baseConditions, ...diffConditions];
+        targetNode.definition!.condition = Array.from(new Set(mergedConditions));
+      } else if (key !== 'id' && key !== 'path') {
+        if (diffElement[key] !== undefined) {
+          logger.info(`Applying \`${key}\` to node: ${targetNode.id}`);
+          targetNode.definition![key] = diffElement[key];
+        }
       }
     }
   }

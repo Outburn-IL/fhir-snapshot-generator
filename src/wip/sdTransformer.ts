@@ -1,11 +1,11 @@
 import { ElementDefinition, FhirTreeNode } from './types';
-import isNodeSliceable from './isNodeSliceable';
+import { isNodeSliceable } from './isNodeSliceable';
 
 const getNodeType = (element: ElementDefinition): 'array' | 'poly' | 'element' | 'resliced' | 'slice' => {
   if (element.id.endsWith('[x]')) {
     return 'poly';
   }
-  if (element.id === element.path && element.base?.max && (element.base.max === '*' || parseInt(element.base.max) > 1)) {
+  if (element.base?.max && (element.base.max === '*' || parseInt(element.base.max) > 1)) {
     return 'array';
   }
   if (element.sliceName) {

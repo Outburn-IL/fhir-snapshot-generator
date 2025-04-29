@@ -1,5 +1,5 @@
 import { FhirTreeNode } from './types';
 
-export default (node: FhirTreeNode): boolean => {
+export const isNodeSliceable = (node: FhirTreeNode): boolean => {
   return node.nodeType === 'array' || node.nodeType === 'poly' || node.nodeType === 'resliced';
 };

@@ -1,6 +1,16 @@
 import { ElementDefinition } from './types';
 
-export default (
+const removeSlices = (elementIdPart: string): string => {
+  const segments = elementIdPart.split('.');
+  // for each segment, remove the slice name if it exists
+  const cleanedSegments = segments.map(segment => {
+    const sliceIndex = segment.indexOf(':');
+    return sliceIndex !== -1 ? segment.slice(0, sliceIndex) : segment;
+  });
+  return cleanedSegments.join('.'); 
+};
+
+export const rewriteElementPaths = (
   snapshot: ElementDefinition[],
   newPrefix: string,
   oldPrefix: string
@@ -8,16 +18,26 @@ export default (
   const oldPrefixDot = oldPrefix.endsWith('.') ? oldPrefix : oldPrefix + '.';
   const newPrefixDot = newPrefix.endsWith('.') ? newPrefix : newPrefix + '.';
   
-  const replace = (str: string) =>
+  const replaceId = (str: string) =>
     str === oldPrefix
       ? newPrefix
       : str.startsWith(oldPrefixDot)
         ? newPrefixDot + str.slice(oldPrefixDot.length)
         : str;
   
+  const replacePath = (elementPath: string) => {
+    const newPathPrefix = removeSlices(newPrefixDot);
+    const oldPathPrefix = removeSlices(oldPrefixDot);
+    return elementPath === oldPathPrefix
+      ? newPathPrefix
+      : elementPath.startsWith(oldPathPrefix)
+        ? newPathPrefix + elementPath.slice(oldPathPrefix.length)
+        : elementPath;
+  };
+
   return snapshot.map(el => ({
     ...el,
-    id: replace(el.id),
-    path: replace(el.path)
+    id: replaceId(el.id),
+    path: replacePath(el.path)
   }));
 };

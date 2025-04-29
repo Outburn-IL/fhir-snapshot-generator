@@ -4,22 +4,12 @@ import path from 'path';
 import { FhirPackageExplorer } from 'fhir-package-explorer';
 import { buildTreeFromSnapshot, flattenTreeToSnapshot } from '../src/wip/sdTransformer';
 import { applyDiffToTree } from '../src/wip/applyDiff';
-import { ElementDefinition } from '../src/wip/types';
-
-const getSnapshot = async (fpe: FhirPackageExplorer, idOrUrl: string): Promise<ElementDefinition[]> => {
-  // if the string starts with 'http:', it is a url, otherwise it is an id
-  const isUrl = idOrUrl.startsWith('http:') || idOrUrl.startsWith('https:');
-  const snapshot = isUrl
-    ? await fpe.resolve({ url: idOrUrl, resourceType: 'StructureDefinition' })
-    : await fpe.resolve({ id: idOrUrl, resourceType: 'StructureDefinition' });
-  return snapshot.snapshot.element;
-};
 
 const applyDiffTest = async (fpe: FhirPackageExplorer, id: string) => {
   const snapshot = await fpe.resolve({ id, resourceType: 'StructureDefinition' });
   const parentSnapshot = await fpe.resolve({ url: snapshot.baseDefinition, resourceType: 'StructureDefinition' });
   const tree = buildTreeFromSnapshot(parentSnapshot.snapshot.element);
-  const resTree = await applyDiffToTree(tree, snapshot.differential.element, async (idOrUrl) => await getSnapshot(fpe, idOrUrl));
+  const resTree = await applyDiffToTree(tree, snapshot.differential.element, fpe);
   fs.writeJSONSync(path.join(fpe.getCachePath(), id + '-applied-tree.json'), resTree, { spaces: 2 });
   const flattenedSnapshot = flattenTreeToSnapshot(resTree);
   fs.writeJSONSync(path.join(fpe.getCachePath(), id + '-applied-snapshot.json'), flattenedSnapshot, { spaces: 2 });
@@ -59,17 +49,17 @@ describe('Apply differential to parent snapshot', async () => {
     'fixed-system-patient-identifier',
     'FixedSystemPatientIdentifierProfile',
     'OrganizationBasicProfile',
-    // 'PractitionerQualificationSlices',
+    'PractitionerQualificationSlices',
     'SimpleBinaryTypeExtension',
     'SimpleCardinalityPatient',
     'SimpleLiberalExtension',
     'SimpleMonopolyExtension',
-    'PatientIdentifierDeepDiff'
+    'PatientIdentifierDeepDiff',
     // 'bp',
-    // 'il-core-patient',
+    'il-core-patient',
     // 'il-core-practitioner',
     // 'il-core-bp',
-    // 'MedicationRequest',
+    // 'MedicationRequest'
   ];
 
   const fpe = await FhirPackageExplorer.create({
