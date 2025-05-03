@@ -45,6 +45,7 @@ describe('Snapshot Tree Round-trip', () => {
   }, 240000); // 4min timeout for setup
     
   const listOfSd = [
+    'CodeableConceptSliceInherit',
     'ComplexLiberalExtension',
     'ext-hearing-loss',
     'fixed-system-identifier',

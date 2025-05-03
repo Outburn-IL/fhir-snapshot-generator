@@ -56,10 +56,11 @@ describe('Apply differential to parent snapshot', async () => {
     'SimpleMonopolyExtension',
     'PatientIdentifierDeepDiff',
     // 'bp',
-    'il-core-patient',
+    // 'il-core-patient',
     // 'il-core-practitioner',
     // 'il-core-bp',
     // 'MedicationRequest'
+    'CodeableConceptSliceInherit'
   ];
 
   const fpe = await FhirPackageExplorer.create({
