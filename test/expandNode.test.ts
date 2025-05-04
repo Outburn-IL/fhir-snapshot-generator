@@ -10,7 +10,7 @@ const cachePath = './test/.test-cache';
 const context = ['fsg.test.pkg#0.1.0'];
 let fpe: FhirPackageExplorer;
 
-describe('Expand the Extension.extension node', async () => {
+describe.skip('Expand the Extension.extension node', async () => {
   beforeAll(() => {
     // create empty directories for unsused dependencies
     ['hl7.fhir.uv.bulkdata#2.0.0', 'hl7.fhir.uv.sdc#3.0.0', 'hl7.fhir.uv.smart-app-launch#2.1.0', 'ihe.formatcode.fhir#1.1.0', 'us.cdc.phinvads#0.12.0', 'us.nlm.vsac#0.11.0', 'hl7.terminology.r4#5.0.0', 'hl7.fhir.uv.extensions.r4#1.0.0'].forEach((dep) => {

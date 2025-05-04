@@ -2,14 +2,14 @@ import path from 'path';
 import fs from 'fs-extra';
 import { describe, it, expect, beforeAll } from 'vitest';
 
-import { buildTreeFromSnapshot, flattenTreeToSnapshot } from '../src/wip/sdTransformer';
+import { toTree, fromTree } from '../src/wip';
 import { FhirPackageExplorer } from 'fhir-package-explorer';
 
 const roundTripTest = async (fpe: FhirPackageExplorer, sd: string) => {
   const snapshot = await fpe.resolve({ id: sd, resourceType: 'StructureDefinition' });
-  const tree = buildTreeFromSnapshot(snapshot.snapshot.element);
+  const tree = toTree(snapshot.snapshot.element);
   fs.writeJSONSync(path.join(fpe.getCachePath(), `${sd}-tree.json`), tree, { spaces: 2 });
-  const flattenedSnapshot = flattenTreeToSnapshot(tree);
+  const flattenedSnapshot = fromTree(tree);
   fs.writeJSONSync(path.join(fpe.getCachePath(), `${sd}-flattened-snapshot.json`), flattenedSnapshot, { spaces: 2 });
   fs.writeJSONSync(path.join(fpe.getCachePath(), `${sd}-flattened-snapshot-compare.json`), snapshot.snapshot.element, { spaces: 2 });
   return {

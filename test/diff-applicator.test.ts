@@ -2,21 +2,17 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs-extra';
 import path from 'path';
 import { FhirPackageExplorer } from 'fhir-package-explorer';
-import { buildTreeFromSnapshot, flattenTreeToSnapshot } from '../src/wip/sdTransformer';
-import { applyDiffToTree } from '../src/wip/applyDiff';
+import { applyDiffs } from '../src/wip';
 
 const applyDiffTest = async (fpe: FhirPackageExplorer, id: string) => {
-  const snapshot = await fpe.resolve({ id, resourceType: 'StructureDefinition' });
-  const parentSnapshot = await fpe.resolve({ url: snapshot.baseDefinition, resourceType: 'StructureDefinition' });
-  const tree = buildTreeFromSnapshot(parentSnapshot.snapshot.element);
-  const resTree = await applyDiffToTree(tree, snapshot.differential.element, fpe);
-  fs.writeJSONSync(path.join(fpe.getCachePath(), id + '-applied-tree.json'), resTree, { spaces: 2 });
-  const flattenedSnapshot = flattenTreeToSnapshot(resTree);
-  fs.writeJSONSync(path.join(fpe.getCachePath(), id + '-applied-snapshot.json'), flattenedSnapshot, { spaces: 2 });
-  fs.writeJSONSync(path.join(fpe.getCachePath(), id + '-compare-snapshot.json'), snapshot.snapshot.element, { spaces: 2 });
+  const sd = await fpe.resolve({ id, resourceType: 'StructureDefinition' });
+  const parentSnapshot = await fpe.resolve({ url: sd.baseDefinition, resourceType: 'StructureDefinition' });
+  const result = await applyDiffs(parentSnapshot.snapshot.element, sd.differential.element, fpe);
+  fs.writeJSONSync(path.join(fpe.getCachePath(), id + '-applied-snapshot.json'), result, { spaces: 2 });
+  fs.writeJSONSync(path.join(fpe.getCachePath(), id + '-compare-snapshot.json'), sd.snapshot.element, { spaces: 2 });
   return {
-    compare: snapshot.snapshot.element,
-    applied: flattenedSnapshot
+    compare: sd.snapshot.element,
+    applied: result
   };
 };
 
@@ -43,24 +39,23 @@ describe('Apply differential to parent snapshot', async () => {
   
 
   const listOfSd = [
-    'ComplexLiberalExtension',
+    'SimpleLiberalExtension',
+    'SimpleMonopolyExtension',
     'ext-hearing-loss',
     'fixed-system-identifier',
     'fixed-system-patient-identifier',
     'FixedSystemPatientIdentifierProfile',
     'OrganizationBasicProfile',
-    'PractitionerQualificationSlices',
+    'ComplexLiberalExtension',
     'SimpleBinaryTypeExtension',
     'SimpleCardinalityPatient',
-    'SimpleLiberalExtension',
-    'SimpleMonopolyExtension',
+    'PractitionerQualificationSlices',
     'PatientIdentifierDeepDiff',
-    // 'bp',
-    // 'il-core-patient',
-    // 'il-core-practitioner',
-    // 'il-core-bp',
-    // 'MedicationRequest'
-    'CodeableConceptSliceInherit'
+    'CodeableConceptSliceInherit',
+    'il-core-patient',
+    'il-core-practitioner',
+    'il-core-bp',
+    // 'bp'
   ];
 
   const fpe = await FhirPackageExplorer.create({

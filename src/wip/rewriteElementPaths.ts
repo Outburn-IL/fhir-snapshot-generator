@@ -1,15 +1,5 @@
 import { ElementDefinition } from './types';
 
-const removeSlices = (elementIdPart: string): string => {
-  const segments = elementIdPart.split('.');
-  // for each segment, remove the slice name if it exists
-  const cleanedSegments = segments.map(segment => {
-    const sliceIndex = segment.indexOf(':');
-    return sliceIndex !== -1 ? segment.slice(0, sliceIndex) : segment;
-  });
-  return cleanedSegments.join('.'); 
-};
-
 export const rewriteElementPaths = (
   snapshot: ElementDefinition[],
   newPrefix: string,
@@ -17,6 +7,16 @@ export const rewriteElementPaths = (
 ): ElementDefinition[] => {
   const oldPrefixDot = oldPrefix.endsWith('.') ? oldPrefix : oldPrefix + '.';
   const newPrefixDot = newPrefix.endsWith('.') ? newPrefix : newPrefix + '.';
+
+  const removeSlices = (elementIdPart: string): string => {
+    const segments = elementIdPart.split('.');
+    // for each segment, remove the slice name if it exists
+    const cleanedSegments = segments.map(segment => {
+      const sliceIndex = segment.indexOf(':');
+      return sliceIndex !== -1 ? segment.slice(0, sliceIndex) : segment;
+    });
+    return cleanedSegments.join('.'); 
+  };
   
   const replaceId = (str: string) =>
     str === oldPrefix
