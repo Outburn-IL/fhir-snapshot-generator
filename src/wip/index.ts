@@ -1,15 +1,15 @@
 import { FhirPackageExplorer, LookupFilter } from 'fhir-package-explorer';
 import { ElementDefinition, FhirTreeNode } from './types';
 
-const stripDefinitions = (node: FhirTreeNode): FhirTreeNode => {
-  const { children, ...rest } = node;
-  const restClone = structuredClone(rest);
-  delete restClone.definition; // remove definition from the node
-  return {
-    ...restClone,
-    children: children.map(stripDefinitions)
-  };
-};
+// const stripDefinitions = (node: FhirTreeNode): FhirTreeNode => {
+//   const { children, ...rest } = node;
+//   const restClone = {...rest};
+//   delete restClone.definition; // remove definition from the node
+//   return {
+//     ...restClone,
+//     children: children.map(stripDefinitions)
+//   };
+// };
 
 /**
  * Gets the node type based on the element definition properties.
@@ -53,7 +53,7 @@ export const fromTree = (tree: FhirTreeNode): ElementDefinition[] => {
       if (!node.definition) {
         throw new Error(`Node ${node.id} of type ${node.nodeType} is missing its definition`);
       }
-      result.push(structuredClone(node.definition));
+      result.push(node.definition);
     }
   
     for (const child of node.children) {
@@ -74,8 +74,8 @@ export const toTree = (elements: ElementDefinition[]): FhirTreeNode => {
   if (elements.length === 0) {
     throw new Error('Element array is empty');
   }
-  console.log('Building tree from elements:', elements.map(el => el.id).join(', '));
-  console.log('Elements:', JSON.stringify(elements, null, 2));
+  // console.log('Building tree from elements:', elements.map(el => el.id).join(', '));
+  // console.log('Elements:', JSON.stringify(elements, null, 2));
   
   const idToNode = new Map<string, FhirTreeNode>();
   
@@ -120,13 +120,13 @@ export const toTree = (elements: ElementDefinition[]): FhirTreeNode => {
       }
     }
   
-    return structuredClone(node);
+    return node;
   };
   
   const rootElement = elements[0];
   console.log('Root element:', rootElement.id);
   const rootNode = createNode(rootElement, 'element'); // Force root as element
-  console.log('Root node:', JSON.stringify(stripDefinitions(rootNode), null, 2));
+  // console.log('Root node:', JSON.stringify(stripDefinitions(rootNode), null, 2));
   idToNode.set(rootNode.id, rootNode);
   
   for (let i = 1; i < elements.length; i++) {
@@ -238,11 +238,11 @@ export const rewriteElementPaths = (
         : elementPath;
   };
 
-  return structuredClone(elements.map(el => ({
+  return elements.map(el => ({
     ...el,
     id: replaceId(el.id),
     path: replacePath(el.path)
-  })));
+  }));
 };
 
 /**
@@ -258,7 +258,7 @@ export const rewriteNodePaths = (
   newPrefix: string,
   oldPrefix: string
 ): FhirTreeNode => {
-  const flattened = structuredClone(fromTree(node));
+  const flattened = fromTree(node);
   const rewritten = rewriteElementPaths(flattened, newPrefix, oldPrefix);
   const newNode = toTree(rewritten);
   return newNode;
@@ -275,7 +275,7 @@ export const expandNode = async (node: FhirTreeNode, fpe: FhirPackageExplorer): 
   }
 
   // if node has children - it is already expanded
-  if (node.children.length > 0) return structuredClone(node);
+  if (node.children.length > 0) return node;
 
   // if node has no definition - throw.
   if (!node.definition) {
@@ -312,8 +312,7 @@ export const expandNode = async (node: FhirTreeNode, fpe: FhirPackageExplorer): 
   // construct the new node from the element array
   const expandedSubtree = toTree(rewrittenElements);
   logger.info(`Node '${node.id}' expanded with ${expandedSubtree.children.length} children.`);
-  const clonedNode = structuredClone(node);
-  clonedNode.children = expandedSubtree.children;
+  const clonedNode = { ...node, children: expandedSubtree.children };
   return clonedNode;
 };
 
@@ -348,14 +347,14 @@ export const childExists = (elements: ElementDefinition[], parentNode: string, c
  * @returns the updated element array after injection
  */
 export const injectElementBlock = (elements: ElementDefinition[], injectionPoint: string, elementBlock: ElementDefinition[]): ElementDefinition[] => {
-  console.log('Injecting element block:', elementBlock.map(el => el.id), 'at injection point:', injectionPoint);
-  console.log('Current elements (before):', elements.map(el => el.id));
+  // console.log('Injecting element block:', elementBlock.map(el => el.id), 'at injection point:', injectionPoint);
+  // console.log('Current elements (before):', elements.map(el => el.id));
   const index = elements.findIndex(el => el.id === injectionPoint);
   if (index === -1) throw new Error(`Element with id "${injectionPoint}" not found`);
   const before = elements.slice(0, index);
   const after = elements.slice(index + 1).filter(element => !(element.id.startsWith(`${injectionPoint}.`)) && !(element.id.startsWith(`${injectionPoint}:`))); // Skip the target
-  const results = structuredClone([...before, ...elementBlock, ...after]);
-  console.log('Elements after injection:', results.map(el => el.id));
+  const results = [...before, ...elementBlock, ...after];
+  // console.log('Elements after injection:', results.map(el => el.id));
   return results;
 };
 
@@ -370,26 +369,26 @@ export const injectElementBlock = (elements: ElementDefinition[], injectionPoint
 export const ensureChild = async (elements: ElementDefinition[], parentId: string, childId: string, fpe: FhirPackageExplorer): Promise<ElementDefinition[]> => {
   const logger = fpe.getLogger();
   logger.info(`Ensuring child '${childId}' exists under parent '${parentId}'`);
-  logger.info(`Current working snapshot (before): ${elements.map(el => el.id).join('\n')}`);
+  // logger.info(`Current working snapshot (before): ${elements.map(el => el.id).join('\n')}`);
   const parentElementBlock = elements.filter(element => element.id === parentId || element.id.startsWith(`${parentId}.`));
   if (parentElementBlock.length === 0) {
     throw new Error(`Parent element '${parentId}' not found in the working snapshot array`);
   }
   logger.info(`Parent element '${parentId}' found in the working snapshot array`);
-  logger.info(`Parent element block: ${parentElementBlock.map(el => el.id).join(', ')}`);
+  // logger.info(`Parent element block: ${parentElementBlock.map(el => el.id).join(', ')}`);
   logger.info('Converting parent element block to tree...');
-  let parentNode = toTree(structuredClone(parentElementBlock));
-  logger.info(`Parent block converted to tree: ${JSON.stringify(stripDefinitions(parentNode), null, 2)}`);
+  let parentNode = toTree(parentElementBlock);
+  // logger.info(`Parent block converted to tree: ${JSON.stringify(stripDefinitions(parentNode), null, 2)}`);
   if (isNodeSliceable(parentNode)) {
     logger.info(`Parent node '${parentId}' is sliceable. Stepping into headslice.`);
-    parentNode = structuredClone(parentNode.children[0]); // headslice is always the first child
-    logger.info(`Parent node after stepping into headslice: ${JSON.stringify(stripDefinitions(parentNode), null, 2)}`);
+    parentNode = parentNode.children[0]; // headslice is always the first child
+    // logger.info(`Parent node after stepping into headslice: ${JSON.stringify(stripDefinitions(parentNode), null, 2)}`);
   }
   const isExpanded = parentNode.children.length > 0;
   if (!isExpanded) {
     logger.info(`Parent node '${parentId}' is not expanded. Expanding...`);
-    parentNode = structuredClone(await expandNode(parentNode, fpe));
-    elements = injectElementBlock(structuredClone(elements), parentId, fromTree(parentNode));
+    parentNode = await expandNode(parentNode, fpe);
+    elements = injectElementBlock(elements, parentId, fromTree(parentNode));
   }
   const [ elementName, sliceName ] = childId.split(':');
   const childElement = parentNode.children.find(element => element.id.endsWith(`.${elementName}`));
@@ -412,7 +411,7 @@ export const ensureChild = async (elements: ElementDefinition[], parentId: strin
   // find the slice by name
   logger.info(`Finding slice '${sliceName}' under child element '${childElement.id}'`);
   logger.info(`Child element '${childElement.id}' has ${childElement.children.length} children`);
-  logger.info(`Child element '${childElement.id}' children: ${childElement.children.map(child => child.id).join(', ')}`);
+  // logger.info(`Child element '${childElement.id}' children: ${childElement.children.map(child => child.id).join(', ')}`);
   // logger.info(`Child element: ${JSON.stringify(childElement, null, 2)}`);
   const slice = childElement.children.find(slice => slice.sliceName === sliceName);
 
@@ -427,7 +426,7 @@ export const ensureChild = async (elements: ElementDefinition[], parentId: strin
   }
   // if not found - create the slice by copying the headslice and rewriting the path and id
   logger.info(`Slice '${sliceName}' not found under child element '${childElement.id}'. Creating...`);
-  const headSlice = structuredClone(childElement.children[0]); // the first child is the headslice
+  const headSlice = childElement.children[0]; // the first child is the headslice
   const newId = `${headSlice.id}:${sliceName}`;
 
   const newSlice = rewriteNodePaths(headSlice, newId, headSlice.id);
@@ -442,7 +441,7 @@ export const ensureChild = async (elements: ElementDefinition[], parentId: strin
     newSlice.definition.sliceName = sliceName;
   }
   logger.info(`New slice ${newSlice.id} is ready for injection (sliceName=${newSlice.sliceName})`);
-  logger.info(`Current slices (before): ${childElement.children.map(child => child.id).join(', ')}`);
+  // logger.info(`Current slices (before): ${childElement.children.map(child => child.id).join(', ')}`);
   // add the new slice to the child element
   logger.info(`BEFORE push: Existing children of child element '${childElement.id}':`);
   for (const c of childElement.children) {
@@ -450,16 +449,16 @@ export const ensureChild = async (elements: ElementDefinition[], parentId: strin
   }
   childElement.children.push(newSlice);
   logger.info(`New slice ${newSlice.id} added to child element ${childElement.id}`);
-  logger.info(`Current slices (after): ${childElement.children.map(child => `${child.id}(${child.sliceName})`).join(', ')}`);
+  // logger.info(`Current slices (after): ${childElement.children.map(child => `${child.id}(${child.sliceName})`).join(', ')}`);
   // replace the child element (that now includes a new slice) in the elements array
-  elements = injectElementBlock(structuredClone(elements), childElement.id, fromTree(childElement));
-  const newBlock = fromTree(childElement);
-  logger.info(`Injecting new block for '${childElement.id}':`);
-  for (const el of newBlock) {
-    logger.info(` - ${el.id}`);
-  }
+  elements = injectElementBlock(elements, childElement.id, fromTree(childElement));
+  // const newBlock = fromTree(childElement);
+  // logger.info(`Injecting new block for '${childElement.id}':`);
+  // for (const el of newBlock) {
+  //   logger.info(` - ${el.id}`);
+  // }
   logger.info(`Slice '${sliceName}' created under child element '${childElement.id}'`);
-  logger.info(`Elements after ensuring child: ${elements.map(el => el.id)}`);
+  // logger.info(`Elements after ensuring child: ${elements.map(el => el.id)}`);
   return elements;
 };
 
@@ -472,10 +471,10 @@ export const ensureChild = async (elements: ElementDefinition[], parentId: strin
 export const ensureNode = async (elements: ElementDefinition[], targetElementId: string, fpe: FhirPackageExplorer): Promise<ElementDefinition[]> => {
   const logger = fpe.getLogger();
   logger.info(`Ensuring node '${targetElementId}' exists in the working snapshot array`);
-  logger.info(`Current working snapshot (before): ${elements.map(el => el.id).join(', ')}`);
+  // logger.info(`Current working snapshot (before): ${elements.map(el => el.id).join(', ')}`);
   const idSegments = targetElementId.split('.');
   const rootId = idSegments[0];
-  let updatedElements = structuredClone(elements);
+  let updatedElements = elements;
   // check that root matches the first element in the array
   if (elements[0].id !== rootId) {
     throw new Error(`Root element '${rootId}' not found in the working snapshot array`);
@@ -490,9 +489,9 @@ export const ensureNode = async (elements: ElementDefinition[], targetElementId:
     const parentId = idSegments.slice(0, i).join('.');
     const childId = idSegments[i];
     // logger.info(`Ensuring child '${childId}' under parent '${parentId}'`);
-    updatedElements = structuredClone(await ensureChild(updatedElements, parentId, childId, fpe));
+    updatedElements = await ensureChild(updatedElements, parentId, childId, fpe);
   }
-  console.log(`Current working snapshot (after): ${updatedElements.map(el => el.id).join(', ')}`);
+  // console.log(`Current working snapshot (after): ${updatedElements.map(el => el.id).join(', ')}`);
   return updatedElements;
 };
 
@@ -503,22 +502,24 @@ export const ensureNode = async (elements: ElementDefinition[], targetElementId:
  */
 export const mergeElement = (base: ElementDefinition, diff: ElementDefinition): ElementDefinition => {
   console.log('Merging element:', base.id);
-  const mergedElement = structuredClone(base);
+  // create a shallow working copy of the base element
+  const mergedElement: ElementDefinition = { ...base };
+  // apply the diff attributes, key by key
   for (const key of Object.keys(diff) as string[]) {
     if (key === 'constraint') {
       console.log('Merging constraints:', base.id, 'with diff:', diff.id);
       const baseConstraints = base.constraint || [];
       const diffConstraints = diff.constraint || [];
-      mergedElement.constraint = structuredClone([...baseConstraints, ...diffConstraints]);
+      mergedElement.constraint = [...baseConstraints, ...diffConstraints];
     } else if (key === 'condition') {
       console.log('Merging conditions:', base.id, 'with diff:', diff.id);
       const baseConditions = base.condition || [];
       const diffConditions = diff.condition || [];
-      const mergedConditions = structuredClone([...baseConditions, ...diffConditions]);
+      const mergedConditions = [...baseConditions, ...diffConditions];
       mergedElement.condition = Array.from(new Set(mergedConditions));
     } else if (key !== 'id' && key !== 'path') {
       if (diff[key] !== undefined) {
-        console.log('Overriding key:', `'${key}'`, 'with value:', diff[key]);
+        // console.log('Overriding key:', `'${key}'`, 'with value:', diff[key]);
         mergedElement[key] = diff[key];
       };
     }
@@ -535,16 +536,16 @@ export const mergeElement = (base: ElementDefinition, diff: ElementDefinition): 
  * @returns the updated element array after applying the diff element
  */
 export const applyDiff = (elements: ElementDefinition[], diffElement: ElementDefinition): ElementDefinition[] => {
-  console.log('Processing diff element:', diffElement.id, 'working snapshot:', elements.map(el => el.id).join(', '));
+  // console.log('Processing diff element:', diffElement.id, 'working snapshot:', elements.map(el => el.id).join(', '));
   const index = elements.findIndex(el => el.id === diffElement.id);
   if (index === -1) {
     throw new Error(`Element with id "${diffElement.id}" not found`);
   }
-  const baseElement = structuredClone(elements[index]);
+  const baseElement = { ...elements[index]}; // create a shallow copy of the base element
   // console.log('Base element:', baseElement.id, 'index:', index);
   const mergedElement = mergeElement(baseElement, diffElement);
-  const updatedElements = structuredClone([...elements.slice(0, index), mergedElement, ...elements.slice(index + 1)]);
-  console.log('Updated elements:', updatedElements.map(el => el.id).join(', '));
+  const updatedElements = [...elements.slice(0, index), mergedElement, ...elements.slice(index + 1)];
+  // console.log('Updated elements:', updatedElements.map(el => el.id).join(', '));
   return updatedElements;
 };
 
@@ -559,31 +560,31 @@ export const applyDiff = (elements: ElementDefinition[], diffElement: ElementDef
 export const applyDiffs = async (elements: ElementDefinition[], diffs: ElementDefinition[], fpe: FhirPackageExplorer): Promise<ElementDefinition[]> => {
   const logger = fpe.getLogger();
   logger.info(`Applying ${diffs.length} diffs to the working snapshot array`);
-  let updatedElements = structuredClone(elements);
+  let updatedElements = [...elements];
   logger.info(`Working snapshot array length: ${elements.length}`);
   // logger.info(`Diffs array length: ${diffs.length}`);
-  logger.info(`Diffs: ${diffs.map(diff => diff.id).join(', ')}`);
+  // logger.info(`Diffs: ${diffs.map(diff => diff.id).join(', ')}`);
   // remove extension array from root element if it exists
   if (updatedElements[0].extension) {
     logger.info(`Removing extension from root element '${updatedElements[0].id}'`);
     delete updatedElements[0].extension;
   }
   // if no diffs - return the elements array as is
-  if (diffs.length === 0) return structuredClone(updatedElements);
+  if (diffs.length === 0) return updatedElements;
   for (const diff of diffs) {
     logger.info(`Preparing to apply diff: ${diff.id}`);
-    logger.info(`Current working snapshot: ${updatedElements.map(el => el.id).join(', ')}`);
+    // logger.info(`Current working snapshot: ${updatedElements.map(el => el.id).join(', ')}`);
 
     logger.info(`Ensuring diff target ${diff.id} exists in the working snapshot array`);
     if (!nodeExists(updatedElements, diff.id)) {
       logger.info(`Diff target '${diff.id}' not found in the working snapshot array. Creating branch...`);
       // ensure the entire path to the target element exists in the working snapshot array
-      updatedElements = structuredClone(await ensureNode(updatedElements, diff.id, fpe));
+      updatedElements = await ensureNode(updatedElements, diff.id, fpe);
     }
     
     // apply the diff element to the working snapshot array
     updatedElements = applyDiff(updatedElements, diff);
   }
-  return structuredClone(updatedElements);
+  return updatedElements;
 };
 

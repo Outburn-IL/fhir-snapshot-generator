@@ -55,6 +55,8 @@ describe('Apply differential to parent snapshot', async () => {
     'il-core-patient',
     'il-core-practitioner',
     'il-core-bp',
+    'il-core-address',
+    // 'us-core-patient'
     // 'bp'
   ];
 
