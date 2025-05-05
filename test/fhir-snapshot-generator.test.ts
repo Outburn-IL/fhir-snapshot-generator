@@ -3,6 +3,7 @@ import fs from 'fs-extra';
 import { describe, it, expect, beforeAll } from 'vitest';
 
 import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
+import { ElementDefinition } from '../src/wip/types';
 
 const deleteInternalFields = (snapshot) => {
   delete snapshot['__filename'];
@@ -40,7 +41,7 @@ const deleteInternalFields = (snapshot) => {
 };
 
 describe.skip('FhirSnapshotGenerator', () => {
-  let fpe: FhirSnapshotGenerator;
+  let fsg: FhirSnapshotGenerator;
   const cachePath = './test/.test-cache';
   const context = ['il.core.fhir.r4#0.17.0', 'fsg.test.pkg#0.1.0'];
     
@@ -58,57 +59,57 @@ describe.skip('FhirSnapshotGenerator', () => {
         version: dep.split('#')[1]
       });
     });
-    fpe = await FhirSnapshotGenerator.create({
+    fsg = await FhirSnapshotGenerator.create({
       cachePath,
       context
     });
   }, 240000); // 4min timeout for setup
     
   it.skip('should create a snapshot for CQF-Questionnaire by URL', async () => {
-    const snapshot = await fpe.getSnapshot('http://hl7.org/fhir/StructureDefinition/cqf-questionnaire');
+    const snapshot = await fsg.getSnapshot('http://hl7.org/fhir/StructureDefinition/cqf-questionnaire');
     const compare = fs.readJSONSync(path.join('.', 'test', 'CQF-Questionnaire.json'));
     expect(snapshot).toEqual(compare);
   });
 
   it.skip('should create a snapshot for bp by id', async () => {
-    const snapshot = await fpe.getSnapshot('bp');
+    const snapshot = await fsg.getSnapshot('bp');
     const compare = fs.readJSONSync(path.join('.', 'test', 'bp.json'));
     expect(snapshot).toEqual(compare);
   }, 10000); // 10s timeout for this test
 
   it.skip('should create a snapshot for il-core-patient by id', async () => {
-    const snapshot = await fpe.getSnapshot('il-core-patient');
+    const snapshot = await fsg.getSnapshot('il-core-patient');
     const compare = fs.readJSONSync(path.join('.', 'test', 'il-core-patient.json'));
     expect(snapshot).toEqual(compare);
   }, 10000);
 
   it.skip('should create a snapshot for il-core-practitioner by id', async () => {
-    const snapshot = await fpe.getSnapshot('il-core-practitioner');
+    const snapshot = await fsg.getSnapshot('il-core-practitioner');
     const compare = fs.readJSONSync(path.join('.', 'test', 'il-core-practitioner.json'));
     expect(snapshot).toEqual(compare);
   }, 15000); // 15s timeout for this test
 
   it.skip('should get a partial snapshot of a BackboneElement', async () => {
-    const snapshot = await fpe.getSnapshot('#Questionnaire.item.item');
+    const snapshot = await fsg.getSnapshot('#Questionnaire.item.item');
     const compare = fs.readJSONSync(path.join('.', 'test', 'Questionnaire.item.item.json'));
     expect(snapshot).toEqual(compare);
   });
 
   it.skip('should get original StructureDefinition for MedicationRequest', async () => {
-    const snapshot = await fpe.getSnapshot('MedicationRequest', { id: 'il.core.fhir.r4', version: '0.17.0' });
+    const snapshot = await fsg.getSnapshot('MedicationRequest', { id: 'il.core.fhir.r4', version: '0.17.0' });
     const compare = fs.readJSONSync(path.join('.', 'test', 'MedicationRequest.json'));
     expect(snapshot).toEqual(compare);
   });
 
   it.skip('should fetch previously generated snapshots from cache (fast retrieval)', async () => {
     const start = Date.now();
-    await fpe.getSnapshot('il-core-practitioner');
-    await fpe.getSnapshot('ILCorePractitioner');
-    await fpe.getSnapshot('http://fhir.health.gov.il/StructureDefinition/il-core-practitioner');
-    await fpe.getSnapshot('il-core-patient');
-    await fpe.getSnapshot('bp');
-    await fpe.getSnapshot('MedicationRequest');
-    const lastSnapshot = await fpe.getSnapshot('http://hl7.org/fhir/StructureDefinition/cqf-questionnaire');
+    await fsg.getSnapshot('il-core-practitioner');
+    await fsg.getSnapshot('ILCorePractitioner');
+    await fsg.getSnapshot('http://fhir.health.gov.il/StructureDefinition/il-core-practitioner');
+    await fsg.getSnapshot('il-core-patient');
+    await fsg.getSnapshot('bp');
+    await fsg.getSnapshot('MedicationRequest');
+    const lastSnapshot = await fsg.getSnapshot('http://hl7.org/fhir/StructureDefinition/cqf-questionnaire');
     const duration = Date.now() - start;
     expect(lastSnapshot).toBeDefined();
     expect(duration).toBeLessThan(50);
@@ -116,15 +117,15 @@ describe.skip('FhirSnapshotGenerator', () => {
 
   it.skip( // skip this test for now, it is to big to debug
     'should match FSH generated snapshot for il-core-practitioner', async () => {
-      const snapshot = await fpe.getSnapshot('il-core-practitioner');
-      fs.writeJSONSync(path.join(fpe.getCachePath(), 'generated_il-core-practitioner.json'), snapshot.snapshot, { spaces: 2 });
+      const snapshot = await fsg.getSnapshot('il-core-practitioner');
+      fs.writeJSONSync(path.join(fsg.getCachePath(), 'generated_il-core-practitioner.json'), snapshot.snapshot, { spaces: 2 });
       const compare = fs.readJSONSync(path.join('.', 'test', 'StructureDefinition-il-core-practitioner.json'));
-      fs.writeJSONSync(path.join(fpe.getCachePath(), 'compared_il-core-practitioner.json'), compare.snapshot, { spaces: 2 });
+      fs.writeJSONSync(path.join(fsg.getCachePath(), 'compared_il-core-practitioner.json'), compare.snapshot, { spaces: 2 });
       delete snapshot['__filename'];
       delete snapshot['__packageId'];
       delete snapshot['__packageVersion'];
       // delete comment, short and definition from the snapshot elements
-      snapshot.snapshot.element.forEach((element) => {
+      snapshot.snapshot.element.forEach((element: ElementDefinition) => {
         if (element['comment']) {
           delete element['comment'];
         }
@@ -144,7 +145,7 @@ describe.skip('FhirSnapshotGenerator', () => {
           delete element['mustSupport'];
         }
       });
-      compare.snapshot.element.forEach((element) => {
+      compare.snapshot.element.forEach((element: ElementDefinition) => {
         if (element['comment']) {
           delete element['comment'];
         }
@@ -168,49 +169,49 @@ describe.skip('FhirSnapshotGenerator', () => {
     });
 
   it('should create a correct snapshot for SimpleCardinalityPatient', async () => {
-    const snapshot = deleteInternalFields(await fpe.getSnapshot('SimpleCardinalityPatient'));
+    const snapshot = deleteInternalFields(await fsg.getSnapshot('SimpleCardinalityPatient'));
     const compare = deleteInternalFields(fs.readJSONSync(path.join(cachePath, 'fsg.test.pkg#0.1.0', 'package', 'StructureDefinition-SimpleCardinalityPatient.json')));
     expect(snapshot).toEqual(compare);
   });
 
   //HearingLossDisability
   it.skip('should create a correct snapshot for HearingLossDisability', async () => {
-    const snapshot = deleteInternalFields(await fpe.getSnapshot('HearingLossDisability'));
+    const snapshot = deleteInternalFields(await fsg.getSnapshot('HearingLossDisability'));
     const compare = deleteInternalFields(fs.readJSONSync(path.join(cachePath, 'fsg.test.pkg#0.1.0', 'package', 'StructureDefinition-ext-hearing-loss.json')));
     expect(snapshot).toEqual(compare);
   });
 
   //FixedSystemIdentifier
   it.skip('should create a correct snapshot for FixedSystemIdentifier', async () => {
-    const snapshot = deleteInternalFields(await fpe.getSnapshot('FixedSystemIdentifier'));
+    const snapshot = deleteInternalFields(await fsg.getSnapshot('FixedSystemIdentifier'));
     const compare = deleteInternalFields(fs.readJSONSync(path.join(cachePath, 'fsg.test.pkg#0.1.0', 'package', 'StructureDefinition-fixed-system-identifier.json')));
     expect(snapshot).toEqual(compare);
   });
 
   //FixedSystemPatientIdentifier
   it.skip('should create a correct snapshot for FixedSystemPatientIdentifier', async () => {
-    const snapshot = deleteInternalFields(await fpe.getSnapshot('FixedSystemPatientIdentifier'));
+    const snapshot = deleteInternalFields(await fsg.getSnapshot('FixedSystemPatientIdentifier'));
     const compare = deleteInternalFields(fs.readJSONSync(path.join(cachePath, 'fsg.test.pkg#0.1.0', 'package', 'StructureDefinition-fixed-system-patient-identifier.json')));
     expect(snapshot).toEqual(compare);
   });
 
   //FixedSystemPatientIdentifierProfile
   it.skip('should create a correct snapshot for FixedSystemPatientIdentifierProfile', async () => {
-    const snapshot = deleteInternalFields(await fpe.getSnapshot('FixedSystemPatientIdentifierProfile'));
+    const snapshot = deleteInternalFields(await fsg.getSnapshot('FixedSystemPatientIdentifierProfile'));
     const compare = deleteInternalFields(fs.readJSONSync(path.join(cachePath, 'fsg.test.pkg#0.1.0', 'package', 'StructureDefinition-FixedSystemPatientIdentifierProfile.json')));
     expect(snapshot).toEqual(compare);
   });
 
   //OrganizationBasicProfile
   it.skip('should create a correct snapshot for OrganizationBasicProfile', async () => {
-    const snapshot = deleteInternalFields(await fpe.getSnapshot('OrganizationBasicProfile'));
+    const snapshot = deleteInternalFields(await fsg.getSnapshot('OrganizationBasicProfile'));
     const compare = deleteInternalFields(fs.readJSONSync(path.join(cachePath, 'fsg.test.pkg#0.1.0', 'package', 'StructureDefinition-OrganizationBasicProfile.json')));
     expect(snapshot).toEqual(compare);
   });
 
   //PractitionerQualificationSlices
   it.skip('should create a correct snapshot for PractitionerQualificationSlices', async () => {
-    const snapshot = deleteInternalFields(await fpe.getSnapshot('PractitionerQualificationSlices'));
+    const snapshot = deleteInternalFields(await fsg.getSnapshot('PractitionerQualificationSlices'));
     const compare = deleteInternalFields(fs.readJSONSync(path.join(cachePath, 'fsg.test.pkg#0.1.0', 'package', 'StructureDefinition-PractitionerQualificationSlices.json')));
     expect(snapshot).toEqual(compare);
   });
