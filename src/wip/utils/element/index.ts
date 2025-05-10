@@ -1,0 +1,9 @@
+export { applyDiffs } from './applyDiffs';
+export { childExists } from './childExists';
+export { ensureChild } from './ensureChild';
+export { ensureBranch } from './ensureBranch';
+export { toNodeType } from './toNodeType';
+export { injectElementBlock } from './injectElementBlock';
+export { mergeElement } from './mergeElement';
+export { elementExists } from './elementExists';
+export { rewriteElementPaths } from './rewriteElementPaths';

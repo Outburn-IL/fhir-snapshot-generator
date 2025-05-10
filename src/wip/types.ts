@@ -1,4 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * © Copyright Outburn Ltd. 2022-2025 All Rights Reserved
+ *   Project name: fhir-snapshot-generator
+ */
+
+import { ExplorerConfig } from 'fhir-package-explorer';
+
 export interface ElementDefinition {
     id: string;                     // e.g., 'Extension.value[x]'
     path: string;                    // e.g., 'Extension.value[x]'
@@ -57,3 +64,29 @@ export interface FhirTreeNode {
     nodeType: 'element' | 'array' | 'poly' | 'slice' | 'resliced' | 'headslice';
     sliceName?: string;
   }
+
+/**
+ * Snapshot caching strategy.
+ *
+ * - `'lazy'`: Default. Generate each snapshot on demand and cache it afterward.
+ * - `'ensure'`: Proactively generate and cache all **missing** snapshots.
+ * - `'rebuild'`: Regenerate **all** snapshots and overwrite existing cache entries.
+ * - `'none'`: Fully bypass the cache. Always regenerate snapshots and do not write to cache.
+ */
+export type SnapshotCacheMode = 'lazy' | 'ensure' | 'rebuild' | 'none';
+
+export type BaseFhirVersion = '3.0.2' | '4.0.1' | '4.3.0' | '5.0.0' | '3.0' | '4.0' | '4.3' | '5.0' | 'R3' | 'STU3' | 'R4' | 'R4B' | 'R5';
+
+export type SnapshotGeneratorConfig = Omit<ExplorerConfig, 'skipExamples'> & {
+  /**
+   * Determines how snapshot caching is handled.
+   * Defaults to `'lazy'` if not specified.
+   */
+  cacheMode?: SnapshotCacheMode;
+  /**
+   * The FHIR version to use for the snapshot generation.
+   * This is used to determine the FHIR core package to use when fetching base FHIR types.
+   * Defaults to 4.0.1 if not specified.
+   */
+  fhirVersion?: BaseFhirVersion;
+};
