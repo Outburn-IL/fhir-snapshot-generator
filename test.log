@@ -1,0 +1,12 @@
+
+> fhir-snapshot-generator@1.0.0 pretest
+> npm run dist-to-module
+
+
+> fhir-snapshot-generator@1.0.0 dist-to-module
+> rimraf node_modules/fhir-snapshot-generator && npm run build && node test/dist-to-module.js
+
+
+> fhir-snapshot-generator@1.0.0 build
+> rimraf dist && ncc build src/index.ts --external fhir-package-explorer --minify --no-cache --out dist
+

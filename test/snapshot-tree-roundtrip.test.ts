@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import { describe, it, expect, beforeAll } from 'vitest';
 
-import { toTree, fromTree } from '../src/wip';
+import { toTree, fromTree } from '../src/utils';
 import { FhirPackageExplorer } from 'fhir-package-explorer';
 
 const roundTripTest = async (fpe: FhirPackageExplorer, sd: string) => {

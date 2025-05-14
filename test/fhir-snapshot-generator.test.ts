@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import { describe, it, expect, beforeAll } from 'vitest';
 
 import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
-import { ElementDefinition } from '../src/wip/types';
+import { ElementDefinition } from '../src/types';
 
 const deleteInternalFields = (snapshot) => {
   delete snapshot['__filename'];
@@ -65,7 +65,7 @@ describe.skip('FhirSnapshotGenerator', () => {
     });
   }, 240000); // 4min timeout for setup
     
-  it.skip('should create a snapshot for CQF-Questionnaire by URL', async () => {
+  it('should create a snapshot for CQF-Questionnaire by URL', async () => {
     const snapshot = await fsg.getSnapshot('http://hl7.org/fhir/StructureDefinition/cqf-questionnaire');
     const compare = fs.readJSONSync(path.join('.', 'test', 'CQF-Questionnaire.json'));
     expect(snapshot).toEqual(compare);
@@ -168,7 +168,7 @@ describe.skip('FhirSnapshotGenerator', () => {
       expect(snapshot).toEqual(compare);
     });
 
-  it('should create a correct snapshot for SimpleCardinalityPatient', async () => {
+  it.skip('should create a correct snapshot for SimpleCardinalityPatient', async () => {
     const snapshot = deleteInternalFields(await fsg.getSnapshot('SimpleCardinalityPatient'));
     const compare = deleteInternalFields(fs.readJSONSync(path.join(cachePath, 'fsg.test.pkg#0.1.0', 'package', 'StructureDefinition-SimpleCardinalityPatient.json')));
     expect(snapshot).toEqual(compare);

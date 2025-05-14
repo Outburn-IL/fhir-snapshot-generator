@@ -10,6 +10,7 @@ export interface ElementDefinition {
     id: string;                     // e.g., 'Extension.value[x]'
     path: string;                    // e.g., 'Extension.value[x]'
   
+    extension?: FhirExtensionInstance[]; // Extensions for this element
     min?: number;                    // Cardinality minimum
     max?: string;                    // Cardinality maximum (e.g., '1', '*')
   
@@ -23,12 +24,18 @@ export interface ElementDefinition {
   
     // Other common constraint-related fields:
     short?: string;
-    definition?: string;
-    comment?: string;
+    definition?: string; // markdown
+    comment?: string; // markdown
+    requirements?: string; // markdown
+    meaningWhenMissing?: string; // markdown
   
     // Placeholder for additional optional fields we may not be using yet:
     [key: string]: any;
   }
+
+export type FhirExtensionInstance = { url: string; [key: string]: any };
+
+export type ElementConstraint = { source?: string, [key: string]: any };
   
 export interface ElementDefinitionType {
     code: string;                     // e.g., 'string', 'CodeableConcept', 'Quantity', etc.

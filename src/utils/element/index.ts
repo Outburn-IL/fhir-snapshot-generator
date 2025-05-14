@@ -7,3 +7,4 @@ export { injectElementBlock } from './injectElementBlock';
 export { mergeElement } from './mergeElement';
 export { elementExists } from './elementExists';
 export { rewriteElementPaths } from './rewriteElementPaths';
+export { migrateElements } from './migrateElements';

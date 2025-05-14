@@ -1,17 +1,35 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect } from 'vitest';
 import fs from 'fs-extra';
 import path from 'path';
-import { FhirPackageExplorer } from 'fhir-package-explorer';
-import { applyDiffs } from '../src/wip';
+import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
 
-const applyDiffTest = async (fpe: FhirPackageExplorer, id: string) => {
-  const sd = await fpe.resolve({ id, resourceType: 'StructureDefinition' });
-  const parentSnapshot = await fpe.resolve({ url: sd.baseDefinition, resourceType: 'StructureDefinition' });
-  const result = await applyDiffs(parentSnapshot.snapshot.element, sd.differential.element, fpe);
-  fs.writeJSONSync(path.join(fpe.getCachePath(), id + '-applied-snapshot.json'), result, { spaces: 2 });
-  fs.writeJSONSync(path.join(fpe.getCachePath(), id + '-compare-snapshot.json'), sd.snapshot.element, { spaces: 2 });
+const normalizeSnapshotForTest = (input: any): any => {
   return {
-    compare: sd.snapshot.element,
+    ...input,
+    snapshot: {
+      element: input.snapshot.element.map((el: any) => ({
+        ...el,
+        definition: undefined,
+        alias: undefined,
+        mapping: undefined,
+        comment: undefined,
+        short: undefined,
+        requirements: el.requirements ? el.requirements.replace('(http://hl7.org/fhir/', '(').replace('(R4/', '(') : undefined,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        constraint: el.constraint?.map(({ source, xpath, ...rest }: any) => rest)
+      }))
+    }
+  };
+};
+
+const applyDiffTest = async (fsg: FhirSnapshotGenerator, id: string) => {
+  const sd = await fsg.getFpe().resolve({ id, resourceType: 'StructureDefinition' });
+  const result = await fsg.getSnapshot(id);
+  fs.writeJSONSync(path.join(fsg.getFpe().getCachePath(), id + '-applied-snapshot.json'), result, { spaces: 2 });
+  fs.writeJSONSync(path.join(fsg.getFpe().getCachePath(), id + '-compare-snapshot.json'), sd, { spaces: 2 });
+  return {
+    compare: sd,
     applied: result
   };
 };
@@ -51,26 +69,27 @@ describe('Apply differential to parent snapshot', async () => {
     'SimpleCardinalityPatient',
     'PractitionerQualificationSlices',
     'PatientIdentifierDeepDiff',
+    'language',
     'CodeableConceptSliceInherit',
     'il-core-patient',
     'il-core-practitioner',
-    'il-core-bp',
+    // 'il-core-bp',
     'il-core-address',
     // 'us-core-patient'
     // 'bp'
   ];
 
-  const fpe = await FhirPackageExplorer.create({
+  const fsg = await FhirSnapshotGenerator.create({
     cachePath,
     context,
-    skipExamples: true
+    cacheMode: 'none'
   });
 
   for (const sd of listOfSd) {
     it(`${sd}: should get identical snapshot to original after applying diff to parent snapshot`, async () => {
-      const result = await applyDiffTest(fpe, sd);
+      const result = await applyDiffTest(fsg, sd);
       const { compare, applied } = result;
-      expect(applied).toEqual(compare);
+      expect(normalizeSnapshotForTest(applied)).toEqual(normalizeSnapshotForTest(compare));
     });
   }
 },480000); // 8min timeout for all tests

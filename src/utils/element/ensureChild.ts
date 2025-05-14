@@ -1,11 +1,12 @@
-import { FhirPackageExplorer } from 'fhir-package-explorer';
+import { ILogger } from 'fhir-package-explorer';
 import {
   rewriteNodePaths,
   toTree,
   fromTree,
   isNodeSliceable,
   expandNode,
-  injectElementBlock
+  injectElementBlock,
+  DefinitionFetcher
 } from '..';
 
 import { ElementDefinition } from '../../types';
@@ -16,10 +17,11 @@ import { ElementDefinition } from '../../types';
  * @param elements working snapshot array
  * @param parentId the full path of the parent node to look for the child in
  * @param childId the last segment of the child element id to look for, e.g "identifier:foo" or "system"
+ * @param fetcher the definition fetcher to use for expanding the node
+ * @param logger the logger to use for logging messages
  * @returns the updated element array after child was added
  */
-export const ensureChild = async (elements: ElementDefinition[], parentId: string, childId: string, fpe: FhirPackageExplorer): Promise<ElementDefinition[]> => {
-  const logger = fpe.getLogger();
+export const ensureChild = async (elements: ElementDefinition[], parentId: string, childId: string, fetcher: DefinitionFetcher, logger: ILogger): Promise<ElementDefinition[]> => {
   const parentElementBlock = elements.filter(element => element.id === parentId || element.id.startsWith(`${parentId}.`));
   if (parentElementBlock.length === 0) {
     throw new Error(`Parent element '${parentId}' not found in the working snapshot array`);
@@ -31,7 +33,7 @@ export const ensureChild = async (elements: ElementDefinition[], parentId: strin
   const isExpanded = parentNode.children.length > 0;
   if (!isExpanded) {
     logger.info(`Expanding element '${parentId}'...`);
-    parentNode = await expandNode(parentNode, fpe);
+    parentNode = await expandNode(parentNode, fetcher, logger);
     elements = injectElementBlock(elements, parentId, fromTree(parentNode));
   }
   const [ elementName, sliceName ] = childId.split(':');

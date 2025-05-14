@@ -6,17 +6,17 @@
 
 import {
   FhirPackageExplorer,
-  ExplorerConfig,
   ILogger,
-  PackageIdentifier
+  PackageIdentifier,
+  FileIndexEntryWithPkg
 } from 'fhir-package-explorer';
-
-import { generateSnapshot as generate } from './newGenerator';
+import { BaseFhirVersion, ElementDefinition, SnapshotCacheMode, SnapshotGeneratorConfig } from './types';
+import { version as fsgVersion } from '../package.json';
+import { DefinitionFetcher, resolveBasePackage, resolveFhirVersion } from './utils/misc';
 import path from 'path';
 import fs from 'fs-extra';
-import { version as fsgVersion } from '../package.json';
-
-export type SnapshotGeneratorConfig = Omit<ExplorerConfig, 'skipExamples'>;
+import { applyDiffs } from './utils';
+import { migrateElements } from './utils/element/migrateElements';
 
 const fsgMajorVersion = `v${fsgVersion.split('.')[0]}`;
 
@@ -24,125 +24,242 @@ export class FhirSnapshotGenerator {
   private fpe: FhirPackageExplorer;
   private logger: ILogger;
   private cachePath: string;
+  private cacheMode: SnapshotCacheMode;
+  private fhirVersion: BaseFhirVersion;
+  private fhirCorePackage: PackageIdentifier;
+  private resolvedBasePackages: Map<string, string> = new Map<string, string>(); // cache for resolved base packages
 
-  private constructor(fpe: FhirPackageExplorer) {
+  private constructor(fpe: FhirPackageExplorer, cahceMode: SnapshotCacheMode, fhirVersion: BaseFhirVersion) {
+    this.cacheMode = cahceMode;
+    this.fhirVersion = fhirVersion;
+    this.fhirCorePackage = resolveFhirVersion(fhirVersion, true) as PackageIdentifier;
     this.fpe = fpe;
     this.logger = fpe.getLogger();
     this.cachePath = fpe.getCachePath();
-  }
+  };
 
+  /**
+   * Creates a new instance of the FhirSnapshotGenerator class.
+   * @param config - the configuration object for the FhirPackageExplorer
+   * @returns - a promise that resolves to a new instance of the FhirSnapshotGenerator class
+   */
   static async create(config: SnapshotGeneratorConfig): Promise<FhirSnapshotGenerator> {
-    const fpe = await FhirPackageExplorer.create({
-      ...config,
-      skipExamples: true // force skipExamples=true
-    });
-    return new FhirSnapshotGenerator(fpe);
+    const cacheMode = config.cacheMode || 'lazy'; // default cache mode
+    const fhirVersion = resolveFhirVersion(config.fhirVersion || '4.0.1') as BaseFhirVersion; // default FHIR version
+    const fpeConfig = { ...config, skipExamples: true }; // force skipExamples=true
+    delete fpeConfig.cacheMode; // remove cacheMode (fsg-only feature)
+    delete fpeConfig.fhirVersion; // remove fhirVersion (fsg-only feature)
+    let fpe = await FhirPackageExplorer.create(fpeConfig);
+    // check if a base FHIR package is in the fpe context
+    const packagesInContext = fpe.getContextPackages();
+    const fhirCorePackage = resolveFhirVersion(fhirVersion, true) as PackageIdentifier;
+    if (!packagesInContext.find(pkg => pkg.id === fhirCorePackage.id && pkg.version === fhirCorePackage.version)) {
+      fpe.getLogger().warn(`No FHIR base package found in the context for version ${fhirVersion}. Adding: ${fhirCorePackage}.`);
+      fpeConfig.context = [...fpeConfig.context, fhirCorePackage];
+      // replace fpe instance with a new one that includes the base package
+      fpe = await FhirPackageExplorer.create(fpeConfig);
+    };
+    return new FhirSnapshotGenerator(fpe, cacheMode, fhirVersion);
+  };
+
+  public getLogger(): ILogger {
+    return this.logger;
   }
 
   public getCachePath(): string {
     return this.cachePath;
   }
 
-  public getLogger(): ILogger {
-    return this.logger;
+  public getCacheMode(): SnapshotCacheMode {
+    return this.cacheMode;
+  };
+
+  public getFhirVersion(): BaseFhirVersion {
+    return this.fhirVersion;
+  };
+
+  public getFpe(): FhirPackageExplorer {
+    return this.fpe;
   }
 
-  private async searchStructureDefinitionMeta(filter: { id?: string; url?: string; name?: string; package?: PackageIdentifier | string }): Promise<any | undefined> {
-    try {
-      const resolved = await this.fpe.resolveMeta({ ...filter, resourceType: 'StructureDefinition' });
-      return resolved;
-    } catch {
+  /**
+   * Get the core FHIR package for a specific FHIR package.
+   * Defaults to the FHIR package of this instance's fhirVersion if no base package is found in the dependencies.
+   * @param sourcePackage The source package identifier (e.g., "hl7.fhir.us.core@6.1.0").
+   */
+  private async getCorePackage(sourcePackage: PackageIdentifier): Promise<PackageIdentifier> {
+    let baseFhirPackage: string | undefined = this.resolvedBasePackages.get(`${sourcePackage.id}@${sourcePackage.version}`);
+    if (!baseFhirPackage) { // try to resolve by dependency context
+      baseFhirPackage = await resolveBasePackage(sourcePackage.id, sourcePackage.version, this.fpe, this.logger);
+    }
+    if (!baseFhirPackage) { // fallback to the default FHIR package
+      this.logger.warn(`Defaulting to core package '${baseFhirPackage}' for resolving FHIR types within '${sourcePackage.id}@${sourcePackage.version}'.`);
+      baseFhirPackage = `${this.fhirCorePackage.id}@${this.fhirCorePackage.version}`;
+    }
+    if (!baseFhirPackage) {
+      throw new Error(`No base FHIR package found for '${sourcePackage.id}@${sourcePackage.version}'.`);
+    }
+    this.resolvedBasePackages.set(`${sourcePackage.id}@${sourcePackage.version}`, baseFhirPackage);
+    const [id, version] = baseFhirPackage.split('@');
+    return { id, version };
+  }
+
+  /**
+   * Get an original StructureDefinition from a specific package by filename.
+   * After resolving the metadata using any other identifier (id, url, name), filename (combind with the package id and version)
+   * is the most reliable way to get to a specific StructureDefinition, and is also used as the basis for the cache.
+   */
+  private async getStructureDefinitionByFileName(filename: string, packageId: string, packageVersion: string): Promise<any> {
+    return await this.fpe.resolve({
+      filename,
+      package: {
+        id: packageId,
+        version: packageVersion
+      }
+    });
+  }
+
+  private getCacheFilePath(filename: string, packageId: string, packageVersion: string): string {
+    return path.join(this.cachePath, `${packageId}#${packageVersion}`, '.fsg.snapshots', fsgMajorVersion, filename);
+  }
+
+  /**
+   * Try to get an existing cached snapshot. If not found, it is not an error - will return undefined.
+   * @param filename The filename of the StructureDefinition in the package.
+   * @param packageId The package ID (e.g., "hl7.fhir.us.core").
+   * @param packageVersion Package version (e.g., "6.1.0").
+   */
+  private async getSnapshotFromCache(filename: string, packageId: string, packageVersion: string): Promise<any> {
+    const cacheFilePath = this.getCacheFilePath(filename, packageId, packageVersion);
+    if (await fs.exists(cacheFilePath)) {
+      return await fs.readJSON(cacheFilePath);
+    } else {
       return undefined;
     }
   }
 
-  private async getSdById(id: string, pkg?: PackageIdentifier | string): Promise<any | undefined> {
-    return await this.searchStructureDefinitionMeta({ id, package: pkg });
+  private async saveSnapshotToCache(filename: string, packageId: string, packageVersion: string, snapshot: any): Promise<void> {
+    const cacheFilePath = this.getCacheFilePath(filename, packageId, packageVersion);
+    await fs.ensureDir(path.dirname(cacheFilePath));
+    await fs.writeJSON(cacheFilePath, snapshot);
   }
 
-  private async getSdByUrl(url: string, pkg?: PackageIdentifier | string): Promise<any | undefined> {
-    return await this.searchStructureDefinitionMeta({ url, package: pkg });
-  }
-
-  private async getSdByName(name: string, pkg?: PackageIdentifier | string): Promise<any | undefined> {
-    return await this.searchStructureDefinitionMeta({ name, package: pkg });
-  }
-
-  private async getStructureDefinition(identifier: string, pkg?: PackageIdentifier | string): Promise<any> {
-    if (identifier.startsWith('#')) {
-      const elementId: string = identifier.substring(1);
-      const baseType: string = elementId.split('.')[0];
-      const baseSnapshot = await this.getStructureDefinition(baseType, pkg);
-      const allElements: any[] = baseSnapshot?.snapshot?.element;
-      const backboneElements: any[] = allElements.filter((e) => e?.id === elementId || String(e?.id).startsWith(elementId + '.'));
-      return {
-        derivation: 'specialization',
-        differential: { element: backboneElements },
-        snapshot: { element: backboneElements }
-      };
-    }
-    let resolved: any | undefined;
-    if (identifier.includes(':')) {
-      resolved = await this.getSdByUrl(identifier, pkg);
-    } else {
-      resolved = await this.getSdById(identifier, pkg);
-    }
-    if (!resolved) {
-      resolved = await this.getSdByName(identifier, pkg);
-    }
-    if (resolved) {
-      const { filename, __packageId, __packageVersion } = resolved;
+  /**
+   * Fetch StructureDefinition metadata by any identifier (id, url, name) - FSH style.
+   * @param identifier 
+   */
+  private async getMetadata(identifier: string): Promise<FileIndexEntryWithPkg> {
+    const errors: any[] = [];
+    if (identifier.startsWith('http:') || identifier.startsWith('https:') || identifier.includes(':')) {
+      // the identifier is possibly a URL/URN - try and resolve it as such
       try {
-        console.log(`Resolving StructureDefinition (filename: '${filename}', package: '${__packageId}@${__packageVersion}')`);
-        const resource = await this.fpe.resolve({ filename, package: { id: __packageId, version: __packageVersion } });
-        return { __filename: filename, ...resource };
+        return await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', url: identifier });
       } catch (e) {
-        this.logger.error(`Failed to resolve StructureDefinition (filename: '${filename}', package: '${__packageId}@${__packageVersion}'), error: ${e}`);
-        throw e;
+        errors.push(e);
       }
-    } else {
-      throw new Error(`Failed to resolve StructureDefinition '${identifier}'`);
+    };
+    // Not a URL, or failed to resolve as URL - try and resolve it as ID
+    try {
+      return await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', id: identifier });;
+    } catch (e) {
+      errors.push(e);
+    };
+    // Couldn't resolve as ID - try and resolve it as name
+    try {
+      return await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', name: identifier });
+    } catch (e) {
+      errors.push(e);
     }
+    // Couldn't resolve at all - throw all errors
+    errors.map(e => this.logger.error(e));
+    throw new Error(`Failed to resolve StructureDefinition '${identifier}'`);
   }
 
-  private async generateSnapshot(identifier: string, pkg?: PackageIdentifier | string): Promise<any> {
-    return await generate(
-      this.getLogger(),
-      this.getStructureDefinition.bind(this),
-      this.getSnapshot.bind(this),
-      identifier,
-      pkg as string
+  /**
+   * Generate a snapshot for a StructureDefinition.
+   * @param filename The filename of the StructureDefinition in the package.
+   * @param packageId The package ID (e.g., "hl7.fhir.us.core").
+   * @param packageVersion Package version (e.g., "6.1.0").
+   * @returns The StructureDefinition with the generated snapshot.
+   * */
+  private async generate(filename: string, packageId: string, packageVersion: string): Promise<any> {
+    const sd = await this.getStructureDefinitionByFileName(filename, packageId, packageVersion);
+    if (!sd) {
+      throw new Error(`File '${filename}' not found in package '${packageId}@${packageVersion}'`);
+    }
+    if (!sd.baseDefinition) {
+      throw new Error(`StructureDefinition '${sd?.url}' does not have a baseDefinition`);
+    }
+    const baseFhirPackage = await this.getCorePackage({ id: packageId, version: packageVersion });
+    const snapshotFetcher = async (url: string): Promise<ElementDefinition[]> => {
+      const metadata = await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', url, package: {
+        id: packageId,
+        version: packageVersion
+      }});
+      return (await this.getSnapshotByMeta(metadata)).snapshot?.element as ElementDefinition[];
+    };
+    const fetcher = new DefinitionFetcher(
+      {
+        id: packageId,
+        version: packageVersion
+      },
+      baseFhirPackage,
+      this.fpe,
+      snapshotFetcher.bind(this)
     );
+    const diffs = sd.differential?.element;
+    if (!diffs || diffs.length === 0) {
+      throw new Error(`StructureDefinition '${filename}' does not have a differential`);
+    }
+    const baseSnapshot = await snapshotFetcher(sd.baseDefinition);
+    if (!baseSnapshot || baseSnapshot.length === 0) {
+      throw new Error(`Base definition '${sd.baseDefinition}' does not have a snapshot`);
+    }
+    const migratedBaseSnapshot = migrateElements(baseSnapshot, sd.baseDefinition);
+    const generated = await applyDiffs(migratedBaseSnapshot, diffs, fetcher, this.logger);
+    return { ...sd, snapshot: { element: generated } };
   }
 
-  async getSnapshot(identifier: string, pkg?: PackageIdentifier | string): Promise<any> {
-    if (identifier.startsWith('#')) {
-      return await this.getStructureDefinition(identifier, pkg);
-    }
-  
-    // Always use the same logic as getStructureDefinition to resolve metadata
-    const meta = await this.getSdById(identifier, pkg)
-      || await this.getSdByUrl(identifier, pkg)
-      || await this.getSdByName(identifier, pkg);
-  
-    if (meta) {
-      const { filename, __packageId, __packageVersion } = meta;
-      const snapshotDir = path.join(this.cachePath, `${__packageId}#${__packageVersion}`, '.fsg.snapshots', fsgMajorVersion);
-      const snapshotPath = path.join(snapshotDir, filename);
-  
-      // Cache HIT
-      if (await fs.pathExists(snapshotPath)) {
-        return await fs.readJSON(snapshotPath);
+  /**
+   * Get snapshot by metadata. This is the entrypoint for general snapshot fetching.
+   * It returns the original snapshot if it's a base type (derivation=specialization).
+   * Otherwise it will return a generated one while respecting the cache mode.
+   * `metadata` must include: `derivation`, `filename`, `__packageId` and `__packageVersion`.
+   * @param metadata 
+   */
+  private async getSnapshotByMeta(metadata: FileIndexEntryWithPkg): Promise<any> {
+    const { derivation, filename, __packageId: packageId, __packageVersion: packageVersion } = metadata;
+    if (derivation === 'specialization') {
+      // It's a base type, return the snapshot from the original StructureDefinition
+      const sd = await this.getStructureDefinitionByFileName(filename, packageId, packageVersion);
+      const elements = sd?.snapshot?.element as ElementDefinition[];
+      if (!elements || elements.length === 0) {
+        throw new Error(`StructureDefinition '${metadata.url}' does not have a snapshot`);
       }
-  
-      // Cache MISS: generate snapshot and save to cache
-      const generated = await this.generateSnapshot(identifier, pkg);
-      await fs.ensureDir(snapshotDir);
-      await fs.writeJSON(snapshotPath, generated, { spaces: 2 });
-      return generated;
-    } else {
-      throw new Error(`Failed to resolve StructureDefinition '${identifier}'`);
+      return sd;
     }
+    // It's a profile, return a snapshot from cache or generate a new one
+    const cached = this.cacheMode !== 'none' ? await this.getSnapshotFromCache(
+      filename,
+      packageId,
+      packageVersion
+    ) : undefined;
+    if (cached) return cached;
+    const generated = await this.generate(filename, packageId, packageVersion);
+    if (this.cacheMode !== 'none') {
+      await this.saveSnapshotToCache(filename, packageId, packageVersion, generated);
+    }
+    return generated;
   }
-  
-}
+
+  /**
+   * Get snapshot by any FSH style identifier (id, url, name).
+   */
+  public async getSnapshot(identifier: string): Promise<any> {
+    const metadata = await this.getMetadata(identifier);
+    if (!metadata) {
+      throw new Error(`StructureDefinition '${identifier}' not found in context. Could not get or generate a snapshot.`);
+    }
+    return await this.getSnapshotByMeta(metadata);
+  }
+};

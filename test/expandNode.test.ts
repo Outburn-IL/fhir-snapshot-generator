@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { FhirPackageExplorer } from 'fhir-package-explorer';
-import { expandNode } from '../src/wip';
-import { FhirTreeNode } from '../src/wip/types';
+import { expandNode } from '../src/utils';
+import { FhirTreeNode } from '../src/types';
 import fs from 'fs-extra';
 import path from 'path';
 
@@ -38,7 +38,7 @@ describe.skip('Expand the Extension.extension node', async () => {
   it('should expand the Extension.extension node', async () => {
     // first find the Extension.extension node in the base snapshot tree
     const extensionNode = baseSnapshotTree.children[1].children[0];
-    const result = await expandNode(extensionNode, fpe);
+    const result = await expandNode(extensionNode, fpe, fpe.getLogger());
     expect(result.children.length).toBeGreaterThan(2);
     expect(result.children[1].id).toEqual('Extension.extension.extension');
   });

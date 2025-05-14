@@ -1,6 +1,6 @@
-import { FhirPackageExplorer } from 'fhir-package-explorer';
+import { ILogger } from 'fhir-package-explorer';
 import { ElementDefinition } from '../../types';
-import { ensureChild } from '..';
+import { DefinitionFetcher, ensureChild } from '..';
 
 /**
  * Walks the path segements up to the target, expanding child elements and creating slices as needed.
@@ -8,7 +8,7 @@ import { ensureChild } from '..';
  * @param targetElementId target element id
  * * @returns the updated element array after entire path to target element was added
  */
-export const ensureBranch = async (elements: ElementDefinition[], targetElementId: string, fpe: FhirPackageExplorer): Promise<ElementDefinition[]> => {
+export const ensureBranch = async (elements: ElementDefinition[], targetElementId: string, fetcher: DefinitionFetcher, logger: ILogger): Promise<ElementDefinition[]> => {
   const idSegments = targetElementId.split('.');
   const rootId = idSegments[0];
   let updatedElements = elements;
@@ -24,7 +24,7 @@ export const ensureBranch = async (elements: ElementDefinition[], targetElementI
   for (let i = 1; i < idSegments.length; i++) {
     const parentId = idSegments.slice(0, i).join('.');
     const childId = idSegments[i];
-    updatedElements = await ensureChild(updatedElements, parentId, childId, fpe);
+    updatedElements = await ensureChild(updatedElements, parentId, childId, fetcher, logger);
   }
   return updatedElements;
 };

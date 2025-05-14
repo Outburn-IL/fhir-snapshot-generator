@@ -33,5 +33,6 @@ export const mergeElement = (base: ElementDefinition, diff: ElementDefinition): 
       };
     }
   }
+
   return mergedElement;
 };

@@ -1,6 +1,6 @@
-import { FhirPackageExplorer } from 'fhir-package-explorer';
+import { ILogger } from 'fhir-package-explorer';
 import { ElementDefinition } from '../../types';
-import { ensureBranch, mergeElement, elementExists } from '..';
+import { ensureBranch, mergeElement, elementExists, DefinitionFetcher } from '..';
 
 /**
  * Apply a single diff element to the working snapshot array and return the updated array.
@@ -30,8 +30,7 @@ const applySingleDiff = (elements: ElementDefinition[], diffElement: ElementDefi
  * @param diffElements the diff elements to apply
  * @returns the updated element array after applying the diff elements
  */
-export const applyDiffs = async (elements: ElementDefinition[], diffs: ElementDefinition[], fpe: FhirPackageExplorer): Promise<ElementDefinition[]> => {
-  const logger = fpe.getLogger();
+export const applyDiffs = async (elements: ElementDefinition[], diffs: ElementDefinition[], fetcher: DefinitionFetcher, logger: ILogger): Promise<ElementDefinition[]> => {
   let updatedElements = [...elements];
   // remove extension array from root element if it exists
   if (updatedElements[0].extension) {
@@ -43,7 +42,7 @@ export const applyDiffs = async (elements: ElementDefinition[], diffs: ElementDe
     if (!elementExists(updatedElements, diff.id)) {
       logger.info(`Creating branch '${diff.id}'...`);
       // ensure the entire path to the target element exists in the working snapshot array
-      updatedElements = await ensureBranch(updatedElements, diff.id, fpe);
+      updatedElements = await ensureBranch(updatedElements, diff.id, fetcher, logger);
     }
     
     // apply the diff element to the working snapshot array
