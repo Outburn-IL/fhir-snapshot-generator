@@ -16,6 +16,7 @@
     "prepublishOnly": "npm run build",
     "dist-to-module": "rimraf node_modules/fhir-snapshot-generator && npm run build && node test/dist-to-module.js",
     "pretest": "npm run dist-to-module",
+    "pretest:hard": "npm run test:clean && npm run build:sushi",
     "test": "vitest run",
     "test:manual": "npm run build:test:manual && node test/manual/index.js",
     "test:wip": "npm run build:test:wip && node test/wip/index.js"
