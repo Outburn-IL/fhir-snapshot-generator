@@ -32,7 +32,6 @@ export const ensureChild = async (elements: ElementDefinition[], parentId: strin
   }
   const isExpanded = parentNode.children.length > 0;
   if (!isExpanded) {
-    logger.info(`Expanding element '${parentId}'...`);
     parentNode = await expandNode(parentNode, fetcher, logger);
     elements = injectElementBlock(elements, parentId, fromTree(parentNode));
   }
