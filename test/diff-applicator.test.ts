@@ -16,16 +16,18 @@ const normalizeSnapshotForTest = (input: any): any => {
         comment: undefined,
         short: undefined,
         requirements: el.requirements ? el.requirements.replace('(http://hl7.org/fhir/', '(').replace('(R4/', '(') : undefined,
+        condition: undefined, // this is due to SUSHI not accumulating conditions but overriding (e.g il-core-observation.component.dataAbsentReason)
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        constraint: el.constraint?.map(({ source, xpath, ...rest }: any) => rest)
+        constraint: el.constraint?.map(({ source, xpath, ...rest }: any) => rest),
+        isSummary: el.isSummary ? el.isSummary : undefined
       }))
     }
   };
 };
 
 const applyDiffTest = async (fsg: FhirSnapshotGenerator, id: string) => {
-  const sd = await fsg.getFpe().resolve({ id, resourceType: 'StructureDefinition' });
-  const result = await fsg.getSnapshot(id);
+  const sd = normalizeSnapshotForTest(await fsg.getFpe().resolve({ id, resourceType: 'StructureDefinition' }));
+  const result = normalizeSnapshotForTest(await fsg.getSnapshot(id));
   fs.writeJSONSync(path.join(fsg.getFpe().getCachePath(), id + '-applied-snapshot.json'), result, { spaces: 2 });
   fs.writeJSONSync(path.join(fsg.getFpe().getCachePath(), id + '-compare-snapshot.json'), sd, { spaces: 2 });
   return {
@@ -73,9 +75,12 @@ describe('Apply differential to parent snapshot', async () => {
     'CodeableConceptSliceInherit',
     'il-core-patient',
     'il-core-practitioner',
-    // 'il-core-bp',
+    'Observation',
+    'il-core-observation',
+    'il-core-vital-signs',
+    'il-core-bp',
     'il-core-address',
-    // 'us-core-patient'
+    'us-core-patient'
     // 'bp'
   ];
 
@@ -89,7 +94,7 @@ describe('Apply differential to parent snapshot', async () => {
     it(`${sd}: should get identical snapshot to original after applying diff to parent snapshot`, async () => {
       const result = await applyDiffTest(fsg, sd);
       const { compare, applied } = result;
-      expect(normalizeSnapshotForTest(applied)).toEqual(normalizeSnapshotForTest(compare));
+      expect(applied).toEqual(compare);
     });
   }
 },480000); // 8min timeout for all tests
