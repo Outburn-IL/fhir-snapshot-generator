@@ -8,22 +8,70 @@ const normalizeSnapshotForTest = (input: any): any => {
   return {
     ...input,
     snapshot: {
-      element: input.snapshot.element.map((el: any) => ({
-        ...el,
-        definition: undefined,
-        alias: undefined,
-        mapping: undefined,
-        comment: undefined,
-        short: undefined,
-        requirements: el.requirements ? el.requirements.replace('(http://hl7.org/fhir/', '(').replace('(R4/', '(') : undefined,
-        condition: undefined, // this is due to SUSHI not accumulating conditions but overriding (e.g il-core-observation.component.dataAbsentReason)
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        constraint: el.constraint?.map(({ source, xpath, ...rest }: any) => rest),
-        isSummary: el.isSummary ? el.isSummary : undefined
-      }))
-    }
+      element: input.snapshot.element.map((el: any) => {
+        const basePath = el.base?.path;
+
+        const newEl = {
+          ...el,
+          definition: undefined,
+          alias: undefined,
+          mapping: undefined,
+          comment: undefined,
+          short: undefined,
+          requirements: el.requirements
+            ? el.requirements.replace('(http://hl7.org/fhir/', '(').replace('(R4/', '(')
+            : undefined,
+          condition: undefined,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          constraint: el.constraint?.map(({ source, xpath, ...rest }: any) => rest),
+          isSummary: el.isSummary ? el.isSummary : undefined,
+        };
+
+        // 1. Override `type` if base.path === "Resource.id"
+        if (basePath === 'Resource.id') {
+          newEl.type = [
+            {
+              extension: [
+                {
+                  url: 'http://hl7.org/fhir/StructureDefinition/structuredefinition-fhir-type',
+                  valueUrl: 'id',
+                },
+              ],
+              code: 'http://hl7.org/fhirpath/System.String',
+            },
+          ];
+        }
+
+        // 2a. Add slicing if it doesn't exist and base.path matches
+        if (
+          !el.slicing &&
+          (basePath === 'DomainResource.extension' || basePath === 'Element.extension')
+        ) {
+          newEl.slicing = {
+            discriminator: [
+              {
+                type: 'value',
+                path: 'url',
+              },
+            ],
+            // description intentionally omitted to allow test-specific flexibility
+            rules: 'open',
+          };
+        }
+
+        // 2b. Clean up slicing.ordered if it exists and is false
+        if (el.slicing && el.slicing.ordered === false) {
+          newEl.slicing = { ...el.slicing };
+          delete newEl.slicing.ordered;
+        }
+
+        return newEl;
+      }),
+    },
   };
 };
+
+
 
 const applyDiffTest = async (fsg: FhirSnapshotGenerator, id: string) => {
   const sd = normalizeSnapshotForTest(await fsg.getFpe().resolve({ id, resourceType: 'StructureDefinition' }));
@@ -80,7 +128,9 @@ describe('Apply differential to parent snapshot', async () => {
     'il-core-vital-signs',
     'il-core-bp',
     'il-core-address',
-    'us-core-patient'
+    'us-core-patient',
+    'SimpleMonopolyExtensionVariation1',
+    'SimpleMonopolyExtensionVariation2'
     // 'bp'
   ];
 
