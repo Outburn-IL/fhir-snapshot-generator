@@ -12,11 +12,9 @@ import {
 } from 'fhir-package-explorer';
 import { BaseFhirVersion, ElementDefinition, SnapshotCacheMode, SnapshotGeneratorConfig } from './types';
 import { version as fsgVersion } from '../package.json';
-import { DefinitionFetcher, resolveBasePackage, resolveFhirVersion } from './utils/misc';
+import { DefinitionFetcher, resolveBasePackage, resolveFhirVersion, applyDiffs, migrateElements } from './utils';
 import path from 'path';
 import fs from 'fs-extra';
-import { applyDiffs } from './utils';
-import { migrateElements } from './utils/element/migrateElements';
 
 const fsgMajorVersion = `v${fsgVersion.split('.')[0]}`;
 

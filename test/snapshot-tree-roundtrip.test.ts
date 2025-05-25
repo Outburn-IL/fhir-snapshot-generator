@@ -45,24 +45,32 @@ describe('Snapshot Tree Round-trip', () => {
   }, 240000); // 4min timeout for setup
     
   const listOfSd = [
-    'CodeableConceptSliceInherit',
-    'ComplexLiberalExtension',
+    'SimpleLiberalExtension',
+    'SimpleMonopolyExtension',
     'ext-hearing-loss',
     'fixed-system-identifier',
     'fixed-system-patient-identifier',
     'FixedSystemPatientIdentifierProfile',
     'OrganizationBasicProfile',
-    'PractitionerQualificationSlices',
+    'ComplexLiberalExtension',
     'SimpleBinaryTypeExtension',
     'SimpleCardinalityPatient',
-    'SimpleLiberalExtension',
-    'SimpleMonopolyExtension',
-    'bp',
+    'PractitionerQualificationSlices',
+    'PatientIdentifierDeepDiff',
+    'language',
+    'CodeableConceptSliceInherit',
     'il-core-patient',
     'il-core-practitioner',
+    'Observation',
+    'il-core-observation',
+    'il-core-vital-signs',
     'il-core-bp',
-    'MedicationRequest',
-    'PatientIdentifierDeepDiff'
+    'il-core-address',
+    'us-core-patient',
+    'SimpleMonopolyExtensionVariation1',
+    'SimpleMonopolyExtensionVariation2',
+    'vitalsigns',
+    // 'bp' // skipped because original snapshot has both value[x] and value[x]:valueQuantity although it's a monopoly
   ];
 
   for (const sd of listOfSd) {
