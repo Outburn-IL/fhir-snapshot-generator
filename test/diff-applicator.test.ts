@@ -130,8 +130,9 @@ describe('Apply differential to parent snapshot', async () => {
     'il-core-address',
     'us-core-patient',
     'SimpleMonopolyExtensionVariation1',
-    'SimpleMonopolyExtensionVariation2'
-    // 'bp'
+    'SimpleMonopolyExtensionVariation2',
+    'vitalsigns',
+    // 'bp' // skipped because original snapshot has both value[x] and value[x]:valueQuantity although it's a monopoly
   ];
 
   const fsg = await FhirSnapshotGenerator.create({

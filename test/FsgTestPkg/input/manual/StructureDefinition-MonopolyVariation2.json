@@ -269,6 +269,7 @@
       {
         "id": "Extension.value[x]:valueString",
         "path": "Extension.value[x]",
+        "sliceName": "valueString",
         "fixedString": "We fix the value so we have an actual diff to apply apart from the type constraint"
       }
     ]

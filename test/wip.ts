@@ -11,7 +11,7 @@ import path from 'path';
 const cachePath = './test/.test-cache';
 
 // Replace with the actual profile ID you want to test
-const profileId: string = 'SimpleMonopolyExtensionVariation1';
+const profileId: string = 'SimpleMonopolyExtensionVariation2';
 
 const applyDiffTest = async () => {
   const fsg = await FhirSnapshotGenerator.create({ cachePath, context: ['fsg.test.pkg#0.1.0', 'il.core.fhir.r4#0.17.0'] });

@@ -6,7 +6,10 @@ import {
   isNodeSliceable,
   expandNode,
   injectElementBlock,
-  DefinitionFetcher
+  DefinitionFetcher,
+  findMonopolyShortcutTarget,
+  applySingleDiff,
+  initCap
 } from '..';
 
 import { ElementDefinition } from '../../types';
@@ -21,7 +24,14 @@ import { ElementDefinition } from '../../types';
  * @param logger the logger to use for logging messages
  * @returns the updated element array after child was added
  */
-export const ensureChild = async (elements: ElementDefinition[], parentId: string, childId: string, fetcher: DefinitionFetcher, logger: ILogger): Promise<ElementDefinition[]> => {
+export const ensureChild = async (
+  elements: ElementDefinition[],
+  parentId: string,
+  childId: string,
+  fetcher: DefinitionFetcher,
+  logger: ILogger,
+  pathRewriteMap: Map<string, { id: string, path: string }>
+): Promise<ElementDefinition[]> => {
   const parentElementBlock = elements.filter(element => element.id === parentId || element.id.startsWith(`${parentId}.`));
   if (parentElementBlock.length === 0) {
     throw new Error(`Parent element '${parentId}' not found in the working snapshot array`);
@@ -36,8 +46,38 @@ export const ensureChild = async (elements: ElementDefinition[], parentId: strin
     elements = injectElementBlock(elements, parentId, fromTree(parentNode));
   }
   const [ elementName, sliceName ] = childId.split(':');
+  
+  // Try to find a direct child with the expected segment name
   const childElement = parentNode.children.find(element => element.id.endsWith(`.${elementName}`));
-  if (!childElement) throw new Error(`Element '${childId}' is illegal under '${parentId}'.`);
+  
+  if (!childElement) {
+    // Check if it's a shortcut to a polymorphic element
+    const match = findMonopolyShortcutTarget(parentId, elementName, parentNode.children);
+    if (match) {
+      const canonicalId = `${parentId}.${match.rewrittenSegment}`;
+      const elementDefinition = elements.find(e => e.id === canonicalId);
+      const canonicalPath = elementDefinition?.path ?? canonicalId;
+
+      // Register the rewritten ID and path for future rewriting
+      pathRewriteMap.set(`${parentId}.${elementName}`, {
+        id: canonicalId,
+        path: canonicalPath
+      });
+
+      // Apply a virtual diff that constrains the polymorphic type
+      const virtualDiff: ElementDefinition = {
+        id: canonicalId,
+        path: canonicalPath,
+        type: [{ code: match.type }]
+      };
+
+      elements = applySingleDiff(elements, virtualDiff);
+      return elements;
+    }
+
+    // If still not found → this is truly illegal
+    throw new Error(`Element '${childId}' is illegal under '${parentId}'.`);
+  }
 
   if (!sliceName) return elements; // referring to child itself and it exists. nothing to do.
   
@@ -53,25 +93,43 @@ export const ensureChild = async (elements: ElementDefinition[], parentId: strin
   if (slice) {
     return elements;
   }
-  // if not found - create the slice by copying the headslice and rewriting the path and id
-  logger.info(`Creating slice '${childId}'...`);
-  const headSlice = childElement.children[0]; // the first child is the headslice
-  const newId = `${headSlice.id}:${sliceName}`;
+  if (!slice) {
+  // Potentially a monopoly alias — check type
+    if (elementName.endsWith('[x]') && childElement.children[0].definition?.type?.length === 1) {
+      const onlyType = childElement.children[0].definition.type[0].code;
+      const monopolySliceName = `${elementName.slice(0, -3)}${initCap(onlyType)}`;
 
-  const newSlice = rewriteNodePaths(headSlice, newId, headSlice.id);
-  newSlice.nodeType = 'slice'; // set the node type to slice
-  // remove slicing initiator
-  delete newSlice.definition?.slicing;
-  // remove mustSupport from the new slice
-  delete newSlice.definition?.mustSupport;
-  // set the slice name
-  newSlice.sliceName = sliceName;
-  if (newSlice.definition) {
-    newSlice.definition.sliceName = sliceName;
+      if (sliceName === monopolySliceName) {
+        // Monopoly alias - treat this element id as canonical for the head slice
+        const aliasId = `${childElement.id}:${sliceName}`;
+        const aliasPath = childElement.path; // path never contains slice names
+
+        pathRewriteMap.set(aliasId, {
+          id: childElement.id,
+          path: aliasPath
+        });
+
+        logger.info(`Monopoly element '${childElement.id}' treated as canonical for slice alias '${aliasId}'`);
+        return elements;
+      }
+    }
+
+    // ✅ Truly needs a new slice → proceed with slice creation
+    logger.info(`Creating slice '${childId}'...`);
+    const headSlice = childElement.children[0];
+    const newId = `${headSlice.id}:${sliceName}`;
+
+    const newSlice = rewriteNodePaths(headSlice, newId, headSlice.id);
+    newSlice.nodeType = 'slice';
+    delete newSlice.definition?.slicing;
+    delete newSlice.definition?.mustSupport;
+    newSlice.sliceName = sliceName;
+    if (newSlice.definition) {
+      newSlice.definition.sliceName = sliceName;
+    }
+
+    childElement.children.push(newSlice);
+    elements = injectElementBlock(elements, childElement.id, fromTree(childElement));
   }
-  // add the new slice to the child element
-  childElement.children.push(newSlice);
-  // replace the child element (that now includes a new slice) in the elements array
-  elements = injectElementBlock(elements, childElement.id, fromTree(childElement));
   return elements;
 };

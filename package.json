@@ -10,7 +10,8 @@
   "scripts": {
     "build": "rimraf dist && ncc build src/index.ts --external fhir-package-explorer --minify --no-cache --out dist",
     "build:test:wip": "rimraf test/wip && ncc build test/wip.ts --external fhir-package-explorer --external fs-extra --minify --no-cache --out test/wip",
-    "build:sushi": "rimraf test/FsgTestPkg/dist && sushi -s test/FsgTestPkg -o test/FsgTestPkg/dist && node test/create-fsh-manifest.js && node test/install-fsh-package.js",
+    "build:sushi": "rimraf test/FsgTestPkg/dist && sushi -s test/FsgTestPkg -o test/FsgTestPkg/dist && node test/create-fsh-manifest.js && npm run install:fsh-package",
+    "install:fsh-package": "node test/install-fsh-package.js",
     "test:clean": "rimraf test/.test-cache",
     "prepublishOnly": "npm run build",
     "dist-to-module": "rimraf node_modules/fhir-snapshot-generator && npm run build && node test/dist-to-module.js",
