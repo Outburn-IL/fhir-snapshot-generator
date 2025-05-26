@@ -1,3 +1,8 @@
+/**
+ * © Copyright Outburn Ltd. 2022-2025 All Rights Reserved
+ *   Project name: fhir-snapshot-generator
+ */
+
 import { ILogger } from 'fhir-package-explorer';
 import { isNodeSliceable, toTree, rewriteElementPaths, DefinitionFetcher } from '..';
 import { FhirTreeNode, ElementDefinition, ElementDefinitionType } from '../../types';
