@@ -4,7 +4,7 @@
  */
 
 import { toTree, fromTree, rewriteElementPaths } from '..';
-import { FhirTreeNode } from '../../types';
+import { FhirTreeNode } from '../../../types';
 
 /**
  * Rewrites the paths and id's of an entire branch to match a new prefix.

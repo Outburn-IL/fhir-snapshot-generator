@@ -3,7 +3,7 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ElementDefinition } from '../../types';
+import { ElementDefinition } from '../../../types';
 
 /**
  * Injects a block of elements into the working snapshot array at the specified injection point.

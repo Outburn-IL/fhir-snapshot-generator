@@ -3,7 +3,7 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { FhirTreeNode } from '../../types';
+import { FhirTreeNode } from '../../../types';
 import { initCap } from '..';
 
 export const findMonopolyShortcutTarget = (

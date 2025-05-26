@@ -4,7 +4,7 @@
  */
 
 import { FhirPackageExplorer, PackageIdentifier } from 'fhir-package-explorer';
-import { ElementDefinition } from '../../types';
+import { ElementDefinition } from '../../../types';
 import { migrateElements } from '../element';
 
 /**

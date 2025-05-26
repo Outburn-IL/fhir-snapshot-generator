@@ -3,7 +3,7 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ElementDefinition } from '../../types';
+import { ElementDefinition } from '../../../types';
 
 /**
  * Gets the node type based on the element definition properties.

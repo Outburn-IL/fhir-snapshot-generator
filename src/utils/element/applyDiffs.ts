@@ -4,7 +4,7 @@
  */
 
 import { ILogger } from 'fhir-package-explorer';
-import { ElementDefinition } from '../../types';
+import { ElementDefinition } from '../../../types';
 import { ensureBranch, mergeElement, elementExists, DefinitionFetcher } from '..';
 
 /**

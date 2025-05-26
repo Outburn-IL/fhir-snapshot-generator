@@ -5,8 +5,22 @@ import { defineConfig } from 'eslint/config';
 
 
 export default defineConfig([
-  { files: ['**/*.{js,mjs,cjs,ts}'], plugins: { js }, extends: ['js/recommended'], ignores: ['**/node_modules/**', '**/dist/**', 'test/.test-cache/**'], languageOptions: { globals: globals.node }},
-  { files: ['**/*.{js,mjs,cjs,ts}'], languageOptions: { globals: globals.browser },
+  {
+    files: ['**/*.{js,mjs,cjs,ts}'],
+    plugins: { js },
+    extends: ['js/recommended'],
+    ignores: ['node_modules/**', 'dist/**', 'test/.test-cache/**'],
+    languageOptions: {
+      globals: globals.node
+    }
+  },
+  {
+    files: ['**/*.{js,mjs,cjs,ts}'],
+    extends: ['ts/recommended'],
+    languageOptions: {
+      globals: globals.browser
+    },
+    ignores: ['node_modules/**', 'dist/**', 'test/.test-cache/**'],
     rules: {
       indent: ['error', 2],
       semi: ['error', 'always'],
@@ -14,6 +28,7 @@ export default defineConfig([
       'no-unused-vars': ['warn'],
       'no-console': 'off',
       '@typescript-eslint/no-explicit-any': 'off'
-    } },
+    }
+  },
   tseslint.configs.recommended,
 ]);

@@ -3,7 +3,7 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ElementDefinition } from '../../types';
+import { ElementDefinition } from '../../../types';
 
 /**
  * Rewrites the paths and id's of elements in an array to match a new prefix.

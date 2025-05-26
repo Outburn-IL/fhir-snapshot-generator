@@ -5,7 +5,7 @@
 
 import { ILogger } from 'fhir-package-explorer';
 import { isNodeSliceable, toTree, rewriteElementPaths, DefinitionFetcher } from '..';
-import { FhirTreeNode, ElementDefinition, ElementDefinitionType } from '../../types';
+import { FhirTreeNode, ElementDefinition, ElementDefinitionType } from '../../../types';
 
 /**
  * Expands a node by ensuring its children are populated.

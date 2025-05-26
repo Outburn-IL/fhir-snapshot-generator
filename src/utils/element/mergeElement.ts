@@ -3,7 +3,7 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ElementDefinition } from '../../types';
+import { ElementDefinition } from '../../../types';
 
 /**
  * Merge an existing snapshot element with a diff element.

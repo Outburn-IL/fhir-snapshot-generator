@@ -4,7 +4,7 @@
  */
 
 import { elementExists } from '..';
-import { ElementDefinition } from '../../types';
+import { ElementDefinition } from '../../../types';
 
 /**
  * Takes a parent node and a child id, and checks if the child exists in the working snapshot array.

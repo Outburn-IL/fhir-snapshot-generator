@@ -4,7 +4,7 @@
  */
 
 import { PackageIdentifier } from 'fhir-package-explorer';
-import { BaseFhirVersion } from '../../types';
+import { BaseFhirVersion } from '../../../types';
 
 const fhirVersionMap = {
   '3.0.2': 'STU3',
