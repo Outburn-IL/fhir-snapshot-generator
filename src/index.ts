@@ -10,13 +10,23 @@ import {
   PackageIdentifier,
   FileIndexEntryWithPkg
 } from 'fhir-package-explorer';
-import { BaseFhirVersion, ElementDefinition, SnapshotCacheMode, SnapshotGeneratorConfig } from '../types';
-import { version as fsgVersion } from '../package.json';
-import { DefinitionFetcher, resolveBasePackage, resolveFhirVersion, applyDiffs, migrateElements } from './utils';
+import {
+  DefinitionFetcher,
+  resolveBasePackage,
+  resolveFhirVersion,
+  applyDiffs,
+  migrateElements,
+  versionedCacheDir
+} from './utils';
 import path from 'path';
 import fs from 'fs-extra';
 
-const fsgMinorVersion = `v${fsgVersion.split('.').slice(0, 2).join('.')}.x`;
+import {
+  BaseFhirVersion,
+  ElementDefinition,
+  SnapshotCacheMode,
+  SnapshotGeneratorConfig
+} from '../types';
 
 export class FhirSnapshotGenerator {
   private fpe: FhirPackageExplorer;
@@ -118,7 +128,7 @@ export class FhirSnapshotGenerator {
   }
 
   private getCacheFilePath(filename: string, packageId: string, packageVersion: string): string {
-    return path.join(this.cachePath, `${packageId}#${packageVersion}`, '.fsg.snapshots', fsgMinorVersion, filename);
+    return path.join(this.cachePath, `${packageId}#${packageVersion}`, '.fsg.snapshots', versionedCacheDir, filename);
   }
 
   /**
