@@ -70,7 +70,7 @@ describe('Snapshot Tree Round-trip', () => {
     'SimpleMonopolyExtensionVariation1',
     'SimpleMonopolyExtensionVariation2',
     'vitalsigns',
-    // 'bp' // skipped because original snapshot has both value[x] and value[x]:valueQuantity although it's a monopoly
+    'bp'
   ];
 
   for (const sd of listOfSd) {
