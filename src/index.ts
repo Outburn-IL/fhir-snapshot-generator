@@ -71,27 +71,33 @@ export class FhirSnapshotGenerator {
     };
     const fsg = new FhirSnapshotGenerator(fpe, cacheMode, fhirVersion);
 
-    // 'ensure' and 'rebuild' both trigger a walkthrough of all structure definitions.
-    // The difference is that 'ensure' will not overwrite existing snapshots.
-    const preCachingFn = (
-      cacheMode === 'ensure' 
-        ? fsg.ensureSnapshotCached // will generate only if not cached
-        : (
-          cacheMode === 'rebuild' 
-            ? fsg.rebuildSnapshot // will always generate a new snapshot and overwrite the cache
-            : undefined
-        )
-    );
+    let precache: boolean = false;
 
-    if (preCachingFn) {
-      fpe.getLogger().info(`Pre-caching snapshots in '${cacheMode}' mode...`);
-      // lookup all *profiles* in the FPE context and ensure/rebuild their snapshots.
+    // 'ensure' and 'rebuild' cache modes both trigger a walkthrough of all structure definitions.
+    // The difference is that 'rebuild' will first delete all existing snapshots in the cache.
+    if (cacheMode === 'rebuild') {
+      precache = true;
+      // delete all existing snapshots in the cache for the packages in the context
+      const packageList = fpe.getContextPackages().map(pkg => path.join(fpe.getCachePath(), `${pkg.id}#${pkg.version}`, '.fsg.snapshots', versionedCacheDir));
+      // for each path, delete the directory if it exists
+      for (const snapshotCacheDir of packageList) {
+        if (await fs.exists(snapshotCacheDir)) {
+          fs.removeSync(snapshotCacheDir);
+        }
+      }
+    }
+
+    if (cacheMode === 'ensure') precache = true;
+
+    if (precache) {
+      fsg.getLogger().info(`Pre-caching snapshots in '${cacheMode}' mode...`);
+      // lookup all *profiles* in the FPE context and ensure their snapshots are cached.
       const allSds = await fpe.lookupMeta({ resourceType: 'StructureDefinition', derivation: 'constraint' });
       const errors: string[] = [];
       for (const sd of allSds) {
         const { filename, __packageId: packageId, __packageVersion: packageVersion, url } = sd;
         try {
-          await preCachingFn.bind(fsg)(filename, packageId, packageVersion);
+          await fsg.ensureSnapshotCached(filename, packageId, packageVersion);
         } catch (e) {
           errors.push(`Failed to ${cacheMode} snapshot for '${url}' in package '${packageId}@${packageVersion}': ${
             e instanceof Error ? e.message : String(e)
@@ -305,18 +311,17 @@ export class FhirSnapshotGenerator {
     return generated;
   }
 
-  private async rebuildSnapshot(filename: string, packageId: string, packageVersion: string): Promise<void> {
-    // Rebuild the snapshot by generating it and overwriting the cache
-    const generated = await this.generate(filename, packageId, packageVersion);
-    await this.saveSnapshotToCache(filename, packageId, packageVersion, generated);
-  }
-
   private async ensureSnapshotCached(filename: string, packageId: string, packageVersion: string): Promise<void> {
     // Check if file exists in the cache
     const cacheFilePath = this.getCacheFilePath(filename, packageId, packageVersion);
-    if (await fs.exists(cacheFilePath)) return; // Snapshot is already cached
-    // Generate the snapshot and save it to the cache
-    await this.rebuildSnapshot(filename, packageId, packageVersion);
+    try {
+      await fs.access(cacheFilePath);
+      return; // Snapshot is already cached
+    } catch {
+      // File does not exist, continue to build and cache
+      const generated = await this.generate(filename, packageId, packageVersion);
+      await this.saveSnapshotToCache(filename, packageId, packageVersion, generated); 
+    }
   }
 
   /**
