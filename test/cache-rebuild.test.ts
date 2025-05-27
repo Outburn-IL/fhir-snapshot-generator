@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'fs-extra';
 import path from 'path';
@@ -26,7 +25,7 @@ describe('Re-build all snapshots in context', async () => {
     fs.writeJSONSync(path.join(snapshotCachePath, dummySnapshot), {
       resourceType: 'dummy'
     });
-    const fsg = await FhirSnapshotGenerator.create({
+    await FhirSnapshotGenerator.create({
       cachePath,
       context: [context],
       cacheMode: 'rebuild',

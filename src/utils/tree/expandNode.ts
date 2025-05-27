@@ -3,7 +3,6 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ILogger } from 'fhir-package-explorer';
 import { isNodeSliceable, toTree, rewriteElementPaths, DefinitionFetcher } from '..';
 import { FhirTreeNode, ElementDefinition, ElementDefinitionType } from '../../../types';
 
@@ -12,7 +11,7 @@ import { FhirTreeNode, ElementDefinition, ElementDefinitionType } from '../../..
  * @param node - the node to expand
  * @returns - the expanded node
  */
-export const expandNode = async (node: FhirTreeNode, fetcher: DefinitionFetcher, logger: ILogger): Promise<FhirTreeNode> => {
+export const expandNode = async (node: FhirTreeNode, fetcher: DefinitionFetcher): Promise<FhirTreeNode> => {
   if (isNodeSliceable(node)) {
     throw new Error(`Node '${node.id}' is sliceable. Expand node must be called on a specific slice, headslice or a non-sliceable node.`);
   }

@@ -4,7 +4,7 @@
  */
 
 import { FhirPackageExplorer, PackageIdentifier } from 'fhir-package-explorer';
-import { ElementDefinition } from '../../../types';
+import { ElementDefinition, SnapshotFetcher } from '../../../types';
 import { migrateElements } from '../element';
 
 /**
@@ -22,9 +22,9 @@ export class DefinitionFetcher {
   private elementCache: Map<string, ElementDefinition[]> = new Map<string, ElementDefinition[]>();
   // A function to fetch the snapshot of a profile using its URL. This is used when the URL points to a profile.
   // Depending on the FSG cache mode, it may return a pre-generated cached snapshot or generate a new one.
-  private snapshotFetcher: (url: string) => Promise<ElementDefinition[]>;
+  private snapshotFetcher: SnapshotFetcher;
   
-  public constructor(sourcePackage: PackageIdentifier, corePackage: PackageIdentifier, fpe: FhirPackageExplorer, snapshotFetcher: (url: string) => Promise<ElementDefinition[]>) {
+  public constructor(sourcePackage: PackageIdentifier, corePackage: PackageIdentifier, fpe: FhirPackageExplorer, snapshotFetcher: SnapshotFetcher) {
     this.sourcePackage = sourcePackage;
     this.corePackage = corePackage;
     this.snapshotFetcher = snapshotFetcher;

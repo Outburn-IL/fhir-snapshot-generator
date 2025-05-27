@@ -26,8 +26,9 @@
     "allowJs": true
   },
   "include": [
-    "src/**/*.ts"
-, "types/index.ts"  ],
+    "src/**/*.ts",
+    "test/**/*.*"
+  ],
   "exclude": [
     "dist/**/*"
   ]

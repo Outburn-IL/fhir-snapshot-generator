@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 /**
  * © Copyright Outburn Ltd. 2022-2025 All Rights Reserved
  *   Project name: fhir-snapshot-generator
@@ -26,6 +26,7 @@ import {
   BaseFhirVersion,
   ElementDefinition,
   SnapshotCacheMode,
+  SnapshotFetcher,
   SnapshotGeneratorConfig
 } from '../types';
 
@@ -74,12 +75,12 @@ export class FhirSnapshotGenerator {
     // The difference is that 'ensure' will not overwrite existing snapshots.
     const preCachingFn = (
       cacheMode === 'ensure' 
-      ? fsg.ensureSnapshotCached // will generate only if not cached
-      : (
-        cacheMode === 'rebuild' 
-        ? fsg.rebuildSnapshot // will always generate a new snapshot and overwrite the cache
-        : undefined
-      )
+        ? fsg.ensureSnapshotCached // will generate only if not cached
+        : (
+          cacheMode === 'rebuild' 
+            ? fsg.rebuildSnapshot // will always generate a new snapshot and overwrite the cache
+            : undefined
+        )
     );
 
     if (preCachingFn) {
@@ -93,8 +94,8 @@ export class FhirSnapshotGenerator {
           await preCachingFn.bind(fsg)(filename, packageId, packageVersion);
         } catch (e) {
           errors.push(`Failed to ${cacheMode} snapshot for '${url}' in package '${packageId}@${packageVersion}': ${
-              e instanceof Error ? e.message : String(e)
-            }`
+            e instanceof Error ? e.message : String(e)
+          }`
           );
         }
       }
@@ -237,7 +238,7 @@ export class FhirSnapshotGenerator {
       throw new Error(`StructureDefinition '${sd?.url}' does not have a baseDefinition`);
     }
     const baseFhirPackage = await this.getCorePackage({ id: packageId, version: packageVersion });
-    const snapshotFetcher = async (url: string): Promise<ElementDefinition[]> => {
+    const snapshotFetcher: SnapshotFetcher = async (url: string) => {
       const metadata = await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', url, package: {
         id: packageId,
         version: packageVersion

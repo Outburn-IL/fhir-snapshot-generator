@@ -47,7 +47,7 @@ export const ensureChild = async (
   }
   const isExpanded = parentNode.children.length > 0;
   if (!isExpanded) {
-    parentNode = await expandNode(parentNode, fetcher, logger);
+    parentNode = await expandNode(parentNode, fetcher);
     elements = injectElementBlock(elements, parentId, fromTree(parentNode));
   }
   const [ elementName, sliceName ] = childId.split(':');

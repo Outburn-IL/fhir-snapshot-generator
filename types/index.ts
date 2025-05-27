@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * © Copyright Outburn Ltd. 2022-2025 All Rights Reserved
  *   Project name: fhir-snapshot-generator
@@ -97,3 +96,6 @@ export type SnapshotGeneratorConfig = Omit<ExplorerConfig, 'skipExamples'> & {
    */
   fhirVersion?: BaseFhirVersion;
 };
+
+// eslint-disable-next-line no-unused-vars
+export type SnapshotFetcher = (url: string) => Promise<ElementDefinition[]>;

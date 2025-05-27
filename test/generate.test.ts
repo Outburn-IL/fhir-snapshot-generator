@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect } from 'vitest';
 import fs from 'fs-extra';
 import path from 'path';
@@ -22,7 +21,7 @@ const normalizeSnapshotForTest = (input: any): any => {
             ? el.requirements.replace('(http://hl7.org/fhir/', '(').replace('(R4/', '(')
             : undefined,
           condition: undefined,
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          // eslint-disable-next-line no-unused-vars
           constraint: el.constraint?.map(({ source, xpath, ...rest }: any) => rest),
           isSummary: el.isSummary ? el.isSummary : undefined,
         };

@@ -1,4 +1,3 @@
-import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import { defineConfig } from 'eslint/config';
@@ -6,21 +5,23 @@ import { defineConfig } from 'eslint/config';
 
 export default defineConfig([
   {
-    files: ['**/*.{js,mjs,cjs,ts}'],
-    plugins: { js },
-    extends: ['js/recommended'],
-    ignores: ['node_modules/**', 'dist/**', 'test/.test-cache/**'],
-    languageOptions: {
-      globals: globals.node
-    }
+    ignores: ['node_modules/**', 'dist/**', 'test/.test-cache/**', 'test/wip/**', 'eslint.config.js', 'vitest.config.ts'],
   },
   {
     files: ['**/*.{js,mjs,cjs,ts}'],
-    extends: ['ts/recommended'],
     languageOptions: {
-      globals: globals.browser
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+      parser: tseslint.parser,
+      parserOptions: {
+        project: './tsconfig.json',
+      },
     },
-    ignores: ['node_modules/**', 'dist/**', 'test/.test-cache/**'],
+    plugins: {
+      '@typescript-eslint': tseslint.plugin,
+    },
     rules: {
       indent: ['error', 2],
       semi: ['error', 'always'],
@@ -29,6 +30,5 @@ export default defineConfig([
       'no-console': 'off',
       '@typescript-eslint/no-explicit-any': 'off'
     }
-  },
-  tseslint.configs.recommended,
+  }
 ]);

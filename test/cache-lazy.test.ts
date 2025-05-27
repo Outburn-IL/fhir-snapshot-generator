@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'fs-extra';
 import path from 'path';
@@ -47,7 +46,7 @@ describe('Lazy caching of snapshots', async () => {
       resourceType: 'dummy'
     });
     // re-generate the snapshot
-    const sd = await fsg.getSnapshot('http://example.org/StructureDefinition/ext-hearing-loss');
+    await fsg.getSnapshot('http://example.org/StructureDefinition/ext-hearing-loss');
     // ensure the dummy file was not overwritten
     it('should leave the dummy snapshot cache file untouched', () => {
       expect(fs.readFileSync(path.join(snapshotCachePath, dummySnapshot), 'utf8')).toHaveProperty('resourceType', 'dummy');
