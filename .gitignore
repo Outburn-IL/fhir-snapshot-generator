@@ -6,3 +6,4 @@ test/.test-cache
 test/FsgTestPkg/dist/fsh-generated/fsh-index.txt
 test/FsgTestPkg/dist/fsh-generated/includes
 test/FsgTestPkg/dist/fsh-generated/data
+log.txt
