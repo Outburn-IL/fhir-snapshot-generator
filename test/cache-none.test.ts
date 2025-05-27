@@ -47,5 +47,7 @@ describe('No caching of snapshots', async () => {
     const sd = await fsg.getSnapshot('http://example.org/StructureDefinition/ext-hearing-loss');
     // ensure the dummy file was not read
     expect(sd).toHaveProperty('resourceType', 'StructureDefinition');
+    // delete the dummy snapshot cache file
+    fs.removeSync(path.join(snapshotCachePath, dummySnapshot));
   });
 },480000); // 8min timeout for all tests

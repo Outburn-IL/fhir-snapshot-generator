@@ -46,6 +46,8 @@ describe('Ensure all snapshots in context', async () => {
     it('should leave the dummy snapshot cache file untouched', () => {
       expect(fs.readFileSync(path.join(snapshotCachePath, dummySnapshot), 'utf8')).toHaveProperty('resourceType', 'dummy');
     });
+    // delete the dummy snapshot cache file
+    fs.removeSync(path.join(snapshotCachePath, dummySnapshot));
   });
 
 },480000); // 8min timeout for all tests
