@@ -38,4 +38,15 @@ describe('No caching of snapshots', async () => {
     
   });
 
+  it('should not read the snapshot from cache', async () => {
+    // write dummy snapshot to cache path
+    fs.ensureDirSync(snapshotCachePath);
+    fs.writeJSONSync(path.join(snapshotCachePath, dummySnapshot), {
+      resourceType: 'dummy'
+    });
+    // call getSnapshot again to ensure it does not read from cache
+    const sd = await fsg.getSnapshot('http://example.org/StructureDefinition/ext-hearing-loss');
+    // ensure the dummy file was not read
+    expect(sd).toHaveProperty('resourceType', 'StructureDefinition');
+  });
 },480000); // 8min timeout for all tests
