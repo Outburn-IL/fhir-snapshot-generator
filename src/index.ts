@@ -5,12 +5,6 @@
  */
 
 import {
-  FhirPackageExplorer,
-  ILogger,
-  PackageIdentifier,
-  FileIndexEntryWithPkg
-} from 'fhir-package-explorer';
-import {
   DefinitionFetcher,
   resolveBasePackage,
   resolveFhirVersion,
@@ -20,6 +14,13 @@ import {
 } from './utils';
 import path from 'path';
 import fs from 'fs-extra';
+
+import {
+  FhirPackageExplorer,
+  ILogger,
+  PackageIdentifier,
+  FileIndexEntryWithPkg
+} from 'fhir-package-explorer';
 
 import {
   BaseFhirVersion,
@@ -67,7 +68,43 @@ export class FhirSnapshotGenerator {
       // replace fpe instance with a new one that includes the base package
       fpe = await FhirPackageExplorer.create(fpeConfig);
     };
-    return new FhirSnapshotGenerator(fpe, cacheMode, fhirVersion);
+    const fsg = new FhirSnapshotGenerator(fpe, cacheMode, fhirVersion);
+
+    // 'ensure' and 'rebuild' both trigger a walkthrough of all structure definitions.
+    // The difference is that 'ensure' will not overwrite existing snapshots.
+    const preCachingFn = (
+      cacheMode === 'ensure' 
+      ? fsg.ensureSnapshotCached // will generate only if not cached
+      : (
+        cacheMode === 'rebuild' 
+        ? fsg.rebuildSnapshot // will always generate a new snapshot and overwrite the cache
+        : undefined
+      )
+    );
+
+    if (preCachingFn) {
+      fpe.getLogger().info(`Pre-caching snapshots in '${cacheMode}' mode...`);
+      // lookup all *profiles* in the FPE context and ensure/rebuild their snapshots.
+      const allSds = await fpe.lookupMeta({ resourceType: 'StructureDefinition', derivation: 'constraint' });
+      const errors: string[] = [];
+      for (const sd of allSds) {
+        const { filename, __packageId: packageId, __packageVersion: packageVersion, url } = sd;
+        try {
+          await preCachingFn.bind(fsg)(filename, packageId, packageVersion);
+        } catch (e) {
+          errors.push(`Failed to ${cacheMode} snapshot for '${url}' in package '${packageId}@${packageVersion}': ${
+              e instanceof Error ? e.message : String(e)
+            }`
+          );
+        }
+      }
+      if (errors.length > 0) {
+        fpe.getLogger().error(`Errors during pre-caching snapshots (${errors.length} total):\n${errors.join('\n')}`);
+      } else {
+        fpe.getLogger().info(`Pre-caching snapshots in '${cacheMode}' mode completed successfully.`);
+      }
+    }
+    return fsg;
   };
 
   public getLogger(): ILogger {
@@ -101,7 +138,7 @@ export class FhirSnapshotGenerator {
       baseFhirPackage = await resolveBasePackage(sourcePackage.id, sourcePackage.version, this.fpe, this.logger);
     }
     if (!baseFhirPackage) { // fallback to the default FHIR package
-      this.logger.warn(`Defaulting to core package '${baseFhirPackage}' for resolving FHIR types within '${sourcePackage.id}@${sourcePackage.version}'.`);
+      this.logger.warn(`Defaulting to core package ${this.fhirCorePackage.id}@${this.fhirCorePackage.version} for resolving FHIR types within '${sourcePackage.id}@${sourcePackage.version}'.`);
       baseFhirPackage = `${this.fhirCorePackage.id}@${this.fhirCorePackage.version}`;
     }
     if (!baseFhirPackage) {
@@ -191,6 +228,7 @@ export class FhirSnapshotGenerator {
    * @returns The StructureDefinition with the generated snapshot.
    * */
   private async generate(filename: string, packageId: string, packageVersion: string): Promise<any> {
+    this.logger.info(`Generating snapshot for '${filename}' in package '${packageId}@${packageVersion}'...`);
     const sd = await this.getStructureDefinitionByFileName(filename, packageId, packageVersion);
     if (!sd) {
       throw new Error(`File '${filename}' not found in package '${packageId}@${packageVersion}'`);
@@ -219,13 +257,19 @@ export class FhirSnapshotGenerator {
     if (!diffs || diffs.length === 0) {
       throw new Error(`StructureDefinition '${filename}' does not have a differential`);
     }
-    const baseSnapshot = await snapshotFetcher(sd.baseDefinition);
+    let baseSnapshot: ElementDefinition[] | undefined;
+    try {
+      baseSnapshot = await snapshotFetcher(sd.baseDefinition);
+    } catch (e) {
+      throw new Error(`Failed to fetch snapshot for base definition '${sd.baseDefinition}': ${e instanceof Error ? e.message : String(e)}`);
+    }
     if (!baseSnapshot || baseSnapshot.length === 0) {
       throw new Error(`Base definition '${sd.baseDefinition}' does not have a snapshot`);
     }
     const migratedBaseSnapshot = migrateElements(baseSnapshot, sd.baseDefinition);
     const generated = await applyDiffs(migratedBaseSnapshot, diffs, fetcher, this.logger);
     return { ...sd, snapshot: { element: generated } };
+    
   }
 
   /**
@@ -258,6 +302,20 @@ export class FhirSnapshotGenerator {
       await this.saveSnapshotToCache(filename, packageId, packageVersion, generated);
     }
     return generated;
+  }
+
+  private async rebuildSnapshot(filename: string, packageId: string, packageVersion: string): Promise<void> {
+    // Rebuild the snapshot by generating it and overwriting the cache
+    const generated = await this.generate(filename, packageId, packageVersion);
+    await this.saveSnapshotToCache(filename, packageId, packageVersion, generated);
+  }
+
+  private async ensureSnapshotCached(filename: string, packageId: string, packageVersion: string): Promise<void> {
+    // Check if file exists in the cache
+    const cacheFilePath = this.getCacheFilePath(filename, packageId, packageVersion);
+    if (await fs.exists(cacheFilePath)) return; // Snapshot is already cached
+    // Generate the snapshot and save it to the cache
+    await this.rebuildSnapshot(filename, packageId, packageVersion);
   }
 
   /**

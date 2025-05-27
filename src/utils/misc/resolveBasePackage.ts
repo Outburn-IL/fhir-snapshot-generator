@@ -4,6 +4,7 @@
  */
 
 import { FhirPackageExplorer, ILogger } from 'fhir-package-explorer';
+import { fhirCorePackages } from './resolveFhirVersion';
 
 /**
  * Resolves the base FHIR package for a given package ID and version.
@@ -16,13 +17,13 @@ import { FhirPackageExplorer, ILogger } from 'fhir-package-explorer';
  */
 export const resolveBasePackage = async (packageId: string, packageVersion: string, fpe: FhirPackageExplorer, logger: ILogger): Promise<string | undefined> => {
   const expanded = await fpe.expandPackageDependencies({id: packageId, version: packageVersion});
-  const basePackages = expanded.filter(pkg => /^hl7\.fhir\.[^.]+\.core$/.test(pkg.id));
+  const basePackages = expanded.filter(pkg => Object.values(fhirCorePackages).includes(`${pkg.id}@${pkg.version}`));
   if (basePackages.length === 0) {
-    logger.warn(`No base FHIR package found for ${packageId}@${packageVersion}.`);
+    logger.warn(`No base FHIR package found for ${packageId}@${packageVersion}. Dependencies: ${expanded.map(pkg => `${pkg.id}@${pkg.version}`).join(', ')}.`);
     return undefined;
   }
   if (basePackages.length > 1) {
-    logger.warn(`Multiple base FHIR packages found for ${packageId}@${packageVersion}.`);
+    logger.warn(`Multiple base FHIR packages found for ${packageId}@${packageVersion}: ${basePackages.map(pkg => `${pkg.id}@${pkg.version}`).join(', ')}.`);
     return undefined;
   }
   return `${basePackages[0].id}@${basePackages[0].version}`;

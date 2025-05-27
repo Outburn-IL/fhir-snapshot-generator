@@ -76,7 +76,6 @@ export const applyDiffs = async (elements: ElementDefinition[], diffs: ElementDe
   if (diffs.length === 0) return updatedElements;
   for (const diff of diffs) {
     if (!elementExists(updatedElements, diff.id)) {
-      logger.info(`Creating branch '${diff.id}'...`);
       // ensure the entire path to the target element exists in the working snapshot array
       updatedElements = await ensureBranch(updatedElements, diff.id, fetcher, logger, pathRewriteMap);
     }

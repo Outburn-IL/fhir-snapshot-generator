@@ -86,10 +86,18 @@ export const ensureChild = async (
 
   if (!sliceName) return elements; // referring to child itself and it exists. nothing to do.
   
-  // referring to slice
-  // check if the child is sliceable - throw if not
+  // referring to a slice
+
+  // if child is not sliceable, no slices are allowed but we must be forgiving for this since some HL7 profiles do it.
+  // Ex: The 'catalog' profile on Composition has a "date:IssueDate" diff while "date" is not sliceable.
   if (!isNodeSliceable(childElement)) {
-    throw new Error(`Invalid differential element id '${childId}'. Element '${childElement.id}' is not sliceable.`);
+    // ignore the sliceName and return the elements as is after registering the path rewrite
+    const aliasId = `${childElement.id}:${sliceName}`;
+    pathRewriteMap.set(aliasId, {
+      id: childElement.id,
+      path: childElement.path
+    });
+    return elements;
   }
   // find the slice by name
   const slice = childElement.children.find(slice => slice.sliceName === sliceName);
@@ -114,13 +122,11 @@ export const ensureChild = async (
           path: aliasPath
         });
 
-        logger.info(`Monopoly element '${childElement.id}' treated as canonical for slice alias '${aliasId}'`);
         return elements;
       }
     }
 
     // ✅ Truly needs a new slice → proceed with slice creation
-    logger.info(`Creating slice '${childId}'...`);
     const headSlice = childElement.children[0];
     const newId = `${headSlice.id}:${sliceName}`;
 

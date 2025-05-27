@@ -18,7 +18,7 @@ const fhirVersionMap = {
   '5.0': 'R5'
 };
 
-const fhirCorePackages = {
+export const fhirCorePackages = {
   'STU3': 'hl7.fhir.r3.core@3.0.2',
   'R4': 'hl7.fhir.r4.core@4.0.1',
   'R4B': 'hl7.fhir.r4b.core@4.3.0',

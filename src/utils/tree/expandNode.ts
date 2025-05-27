@@ -26,7 +26,6 @@ export const expandNode = async (node: FhirTreeNode, fetcher: DefinitionFetcher,
   }
 
   const definition: ElementDefinition = node.definition;
-  logger.info(`Expanding node '${node.id}'...`);
 
   // if node has no type nor contentReference - throw.
   if ((!definition.type || definition.type.length === 0) && (!definition.contentReference)) {
