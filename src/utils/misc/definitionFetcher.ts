@@ -42,7 +42,7 @@ export class DefinitionFetcher {
       return elements;
     }
     // If not cached, fetch the type definition from the FhirPackageExplorer
-    const definition = await this.fpe.resolve({ resourceType: 'StructureDefinition', id: type, package: this.corePackage, derivation: 'specialization' });
+    const definition = await this.fpe.resolve({ resourceType: 'StructureDefinition', id: type, package: this.corePackage, derivation: ['Element', 'Resource'].includes(type) ? undefined : 'specialization'});
     if (!definition) {
       throw new Error(`FHIR type '${type}' not found in base package '${this.corePackage}'`);
     }

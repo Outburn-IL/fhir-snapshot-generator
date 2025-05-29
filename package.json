@@ -12,11 +12,11 @@
     "build:test:wip": "rimraf test/wip && ncc build test/wip.ts --external fhir-package-explorer --external fs-extra --minify --no-cache --out test/wip",
     "build:sushi": "rimraf test/FsgTestPkg/dist && sushi -s test/FsgTestPkg -o test/FsgTestPkg/dist && node test/create-fsh-manifest.js && npm run install:fsh-package",
     "install:fsh-package": "node test/install-fsh-package.js",
-    "test:clean-cache": "rimraf test/.test-cache",
+    "clear:cache": "rimraf test/.test-cache",
     "prepublishOnly": "npm run build",
     "dist-to-module": "npm run build && rimraf node_modules/fhir-snapshot-generator && node test/dist-to-module.js",
     "pretest": "npm run dist-to-module && npm run install:fsh-package",
-    "pretest:hard": "npm run test:clean-cache && npm run build:sushi && npm run pretest",
+    "pretest:hard": "npm run clear:cache && npm run build:sushi && npm run pretest",
     "test": "vitest run",
     "test:hard": "npm run pretest:hard && vitest run",
     "test:wip": "npm run build:test:wip && npm run install:fsh-package && node test/wip/index.js"
@@ -44,7 +44,7 @@
     "url": "git+https://github.com/Outburn-IL/fhir-snapshot-generator.git"
   },
   "dependencies": {
-    "fhir-package-explorer": "^1.2.3",
+    "fhir-package-explorer": "^1.2.6",
     "fs-extra": "^11.3.0",
     "jsonata": "^2.0.6"
   },
@@ -56,7 +56,7 @@
     "fsh-sushi": "^3.16.0",
     "rimraf": "^6.0.1",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.32.1",
+    "typescript-eslint": "^8.33.0",
     "vitest": "^3.1.4"
   }
 }

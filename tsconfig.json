@@ -6,6 +6,10 @@
     "declarationMap": true,
     "pretty": true,
     "sourceMap": true,
+    "rootDirs": [
+      "src",
+      "types"
+    ],
     "outDir": "dist",
     "importHelpers": true,
     "strict": true,
@@ -27,9 +31,10 @@
   },
   "include": [
     "src/**/*.ts",
-    "test/**/*.*"
+    "types/**/*.ts"
   ],
   "exclude": [
-    "dist/**/*"
+    "dist/**/*",
+    "node_modules/**/*"
   ]
 }

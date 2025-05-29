@@ -26,5 +26,6 @@ export const resolveBasePackage = async (packageId: string, packageVersion: stri
     logger.warn(`Multiple base FHIR packages found for ${packageId}@${packageVersion}: ${basePackages.map(pkg => `${pkg.id}@${pkg.version}`).join(', ')}.`);
     return undefined;
   }
-  return `${basePackages[0].id}@${basePackages[0].version}`;
+  const version = basePackages[0].id === 'hl7.fhir.r4.core' && basePackages[0].version === '4.0.0' ? '4.0.1' : basePackages[0].version; // Normalize 4.0.0 to 4.0.1
+  return `${basePackages[0].id}@${version}`;
 };

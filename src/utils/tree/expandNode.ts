@@ -52,11 +52,11 @@ export const expandNode = async (node: FhirTreeNode, fetcher: DefinitionFetcher)
     // only a single type
     const elementType: ElementDefinitionType = definition.type[0];
 
-    if (elementType.profile && elementType.profile.length > 0) {
-      // if type has `profile` - use it to get the snapshot.
-      // Currently only the first profile is used. It is not clear how to handle multiple profiles.
-      // In the spec it says "one must apply" - but expansion can only be done using one profile...
-      // TODO: Test how SUSHI handles this case.
+    if (elementType.profile && elementType.profile.length === 1) {
+      // if type has a single `profile` - use it to get the snapshot.
+      // Currently only a single profile is supported for profile based expansion.
+      // If there are multiple profiles expansion will be done using the base type.
+      // TODO: Test how SUSHI handles multiple profiles (FHIR spec says "one must apply")
       const url = elementType.profile[0];
       snapshotElements = await fetcher.getByUrl(url);
       if (!snapshotElements || snapshotElements.length === 0) {
@@ -65,6 +65,11 @@ export const expandNode = async (node: FhirTreeNode, fetcher: DefinitionFetcher)
     } else {
       // if type has no profile - use the type code to get the snapshot.
       const id = elementType.code;
+      if (id.startsWith('http://hl7.org/fhirpath/System.')) {
+        // It's a true (system) primitive, so it cannot have children.
+        // Should not expand.
+        throw new Error(`Cannot expand node '${node.id}', type '${id}' can never have children.`);
+      }
       snapshotElements = await fetcher.getBaseType(id);
       if (!snapshotElements || snapshotElements.length === 0) {
         throw new Error(`Snapshot for type '${id}' is empty or missing.`);

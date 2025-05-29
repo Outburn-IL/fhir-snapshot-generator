@@ -1,4 +1,3 @@
- 
 /**
  * © Copyright Outburn Ltd. 2022-2025 All Rights Reserved
  *   Project name: fhir-snapshot-generator
@@ -244,13 +243,20 @@ export class FhirSnapshotGenerator {
       throw new Error(`StructureDefinition '${sd?.url}' does not have a baseDefinition`);
     }
     const baseFhirPackage = await this.getCorePackage({ id: packageId, version: packageVersion });
-    const snapshotFetcher: SnapshotFetcher = async (url: string) => {
-      const metadata = await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', url, package: {
-        id: packageId,
-        version: packageVersion
-      }});
+    const snapshotFetcher: SnapshotFetcher = (async (url: string) => {
+      let metadata: FileIndexEntryWithPkg;
+      try {
+        metadata = await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', url, package: {
+          id: packageId,
+          version: packageVersion
+        }});
+      } catch (e) {
+        this.logger.warn(`Failed to resolve metadata for '${url}' in package '${packageId}@${packageVersion}': ${e instanceof Error ? e.message : String(e)}`);
+        // try to resolve outside package context
+        metadata = await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', url });
+      }
       return (await this.getSnapshotByMeta(metadata)).snapshot?.element as ElementDefinition[];
-    };
+    }).bind(this);
     const fetcher = new DefinitionFetcher(
       {
         id: packageId,
@@ -258,7 +264,7 @@ export class FhirSnapshotGenerator {
       },
       baseFhirPackage,
       this.fpe,
-      snapshotFetcher.bind(this)
+      snapshotFetcher
     );
     const diffs = sd.differential?.element;
     if (!diffs || diffs.length === 0) {
@@ -267,16 +273,20 @@ export class FhirSnapshotGenerator {
     let baseSnapshot: ElementDefinition[] | undefined;
     try {
       baseSnapshot = await snapshotFetcher(sd.baseDefinition);
+      if (!baseSnapshot || baseSnapshot.length === 0) {
+        throw new Error(`Base definition '${sd.baseDefinition}' does not have a snapshot`);
+      }
+      const migratedBaseSnapshot = migrateElements(baseSnapshot, sd.baseDefinition);
+      const generated = await applyDiffs(migratedBaseSnapshot, diffs, fetcher, this.logger);
+      return { ...sd, snapshot: { element: generated } };
     } catch (e) {
-      throw new Error(`Failed to fetch snapshot for base definition '${sd.baseDefinition}': ${e instanceof Error ? e.message : String(e)}`);
+      this.logger.warn(`Failed to generate snapshot for '${sd.url}': ${e instanceof Error ? e.message : String(e)}\nUsing the original StructureDefinition from source package.`);
+      // if sd doesn't have a snapshot, throw an error
+      if (!sd.snapshot || !sd.snapshot.element || sd.snapshot.element.length === 0) {
+        throw new Error(`The original StructureDefinition '${sd.url}' does not have a snapshot`);
+      }
+      return { ...sd };
     }
-    if (!baseSnapshot || baseSnapshot.length === 0) {
-      throw new Error(`Base definition '${sd.baseDefinition}' does not have a snapshot`);
-    }
-    const migratedBaseSnapshot = migrateElements(baseSnapshot, sd.baseDefinition);
-    const generated = await applyDiffs(migratedBaseSnapshot, diffs, fetcher, this.logger);
-    return { ...sd, snapshot: { element: generated } };
-    
   }
 
   /**

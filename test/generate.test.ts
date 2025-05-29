@@ -1,4 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import {
+  describe,
+  it,
+  // afterAll,
+  expect
+} from 'vitest';
 import fs from 'fs-extra';
 import path from 'path';
 import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
@@ -70,8 +75,6 @@ const normalizeSnapshotForTest = (input: any): any => {
   };
 };
 
-
-
 const applyDiffTest = async (fsg: FhirSnapshotGenerator, id: string) => {
   const sd = normalizeSnapshotForTest(await fsg.getFpe().resolve({ id, resourceType: 'StructureDefinition' }));
   const result = normalizeSnapshotForTest(await fsg.getSnapshot(id));
@@ -89,19 +92,43 @@ describe('Apply differential to parent snapshot', async () => {
   const context = ['il.core.fhir.r4#0.17.0', 'fsg.test.pkg#0.1.0'];
     
 
-  // create empty directories for unsused dependencies
-  ['hl7.fhir.uv.bulkdata#2.0.0', 'hl7.fhir.uv.sdc#3.0.0', 'hl7.fhir.uv.smart-app-launch#2.1.0', 'ihe.formatcode.fhir#1.1.0', 'us.cdc.phinvads#0.12.0', 'us.nlm.vsac#0.11.0', 'hl7.terminology.r4#5.0.0', 'hl7.fhir.uv.extensions.r4#1.0.0'].forEach((dep) => {
-    fs.ensureDirSync(path.join(cachePath, dep));
-    fs.ensureDirSync(path.join(cachePath, dep, 'package'));
-    fs.writeJSONSync(path.join(cachePath, dep, 'package', '.fpi.index.json'),{
-      'index-version': 2,
-      files: []
-    });
-    fs.writeJSONSync(path.join(cachePath, dep, 'package', 'package.json'),{
-      name: dep.split('#')[0],
-      version: dep.split('#')[1]
-    });
-  });
+  // create empty directories for unsused dependencies if they don't exist.
+  // This is to save time on installing these packages. 
+  // Once the folders exists, fpi will assume they are installed.
+  // const unusedDeps = [
+  //   'hl7.fhir.uv.bulkdata#2.0.0',
+  //   'hl7.fhir.uv.smart-app-launch#2.1.0',
+  //   'ihe.formatcode.fhir#1.1.0',
+  //   'us.cdc.phinvads#0.12.0',
+  //   'us.nlm.vsac#0.11.0',
+  //   'hl7.terminology.r4#5.0.0',
+  //   'hl7.fhir.uv.extensions.r4#1.0.0',
+  // ];
+
+  // unusedDeps.forEach((dep) => {
+  //   const [name, version] = dep.split('#');
+  //   const basePath = path.join(cachePath, dep, 'package');
+  //   const indexPath = path.join(basePath, '.fpi.index.json');
+  //   const packageJsonPath = path.join(basePath, 'package.json');
+
+  //   fs.ensureDirSync(basePath);
+
+  //   if (!fs.existsSync(indexPath)) {
+  //     // make a dummy index file with an empty files array
+  //     fs.writeJSONSync(indexPath, {
+  //       'index-version': 2,
+  //       files: [],
+  //     });
+  //   }
+
+  //   if (!fs.existsSync(packageJsonPath)) {
+  //     // make a dummy package.json file with just name and version
+  //     fs.writeJSONSync(packageJsonPath, {
+  //       name,
+  //       version,
+  //     });
+  //   }
+  // });
 
   
 
@@ -147,4 +174,21 @@ describe('Apply differential to parent snapshot', async () => {
       expect(applied).toEqual(compare);
     });
   }
+
+  // afterAll(async () => {
+  //   // remove the unsused dependencies directories - only if they don't contain real package files
+  //   unusedDeps.forEach((dep) => {
+  //     // check if the package directory contains any files other than .fpi.index.json and package.json
+  //     const basePath = path.join(cachePath, dep, 'package');
+  //     if (fs.existsSync(basePath)) {
+  //       const files = fs.readdirSync(basePath).filter(file => !file.startsWith('.fpi.index.json') && file !== 'package.json');
+  //       if (files.length === 0) {
+  //         fs.removeSync(path.join(cachePath, dep));
+  //       }
+  //     }
+  //   }
+  //   );
+  // });
+
+
 },480000); // 8min timeout for all tests
