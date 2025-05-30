@@ -298,7 +298,7 @@ export class FhirSnapshotGenerator {
    */
   private async getSnapshotByMeta(metadata: FileIndexEntryWithPkg): Promise<any> {
     const { derivation, filename, __packageId: packageId, __packageVersion: packageVersion } = metadata;
-    if (derivation === 'specialization') {
+    if (!derivation || derivation === 'specialization') {
       // It's a base type, return the snapshot from the original StructureDefinition
       const sd = await this.getStructureDefinitionByFileName(filename, packageId, packageVersion);
       const elements = sd?.snapshot?.element as ElementDefinition[];
@@ -335,7 +335,7 @@ export class FhirSnapshotGenerator {
   }
 
   /**
-   * Get snapshot by any FSH style identifier (id, url, name).
+   * Get snapshot by any FSH style identifier (id, url or name).
    */
   public async getSnapshot(identifier: string): Promise<any> {
     const metadata = await this.getMetadata(identifier);
