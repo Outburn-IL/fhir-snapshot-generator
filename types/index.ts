@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 /**
  * © Copyright Outburn Ltd. 2022-2025 All Rights Reserved
  *   Project name: fhir-snapshot-generator
@@ -5,32 +6,40 @@
 
 import { ExplorerConfig } from 'fhir-package-explorer';
 
+export interface ILogger {
+  info: (msg: any) => void
+  warn: (msg: any) => void
+  error: (msg: any) => void
+};
+
+export type Prethrower = (msg: Error | any) => Error;
+
 export interface ElementDefinition {
-    id: string;                     // e.g., 'Extension.value[x]'
-    path: string;                    // e.g., 'Extension.value[x]'
-  
-    extension?: FhirExtensionInstance[]; // Extensions for this element
-    min?: number;                    // Cardinality minimum
-    max?: string;                    // Cardinality maximum (e.g., '1', '*')
-  
-    type?: ElementDefinitionType[];  // Possible types for this element (for polymorphics)
-  
-    slicing?: ElementDefinitionSlicing;  // Slicing definition if applicable
-    sliceName?: string;              // If this element is a slice
-  
-    fixedUri?: string;               // Fixed value (if constrained)
-    binding?: ElementDefinitionBinding;  // Value set binding for coded types
-  
-    // Other common constraint-related fields:
-    short?: string;
-    definition?: string; // markdown
-    comment?: string; // markdown
-    requirements?: string; // markdown
-    meaningWhenMissing?: string; // markdown
-  
-    // Placeholder for additional optional fields we may not be using yet:
-    [key: string]: any;
-  }
+  id: string;                     // e.g., 'Extension.value[x]'
+  path: string;                    // e.g., 'Extension.value[x]'
+
+  extension?: FhirExtensionInstance[]; // Extensions for this element
+  min?: number;                    // Cardinality minimum
+  max?: string;                    // Cardinality maximum (e.g., '1', '*')
+
+  type?: ElementDefinitionType[];  // Possible types for this element (for polymorphics)
+
+  slicing?: ElementDefinitionSlicing;  // Slicing definition if applicable
+  sliceName?: string;              // If this element is a slice
+
+  fixedUri?: string;               // Fixed value (if constrained)
+  binding?: ElementDefinitionBinding;  // Value set binding for coded types
+
+  // Other common constraint-related fields:
+  short?: string;
+  definition?: string; // markdown
+  comment?: string; // markdown
+  requirements?: string; // markdown
+  meaningWhenMissing?: string; // markdown
+
+  // Placeholder for additional optional fields we may not be using yet:
+  [key: string]: any;
+}
 
 export type FhirExtensionInstance = { url: string; [key: string]: any };
 
@@ -97,5 +106,4 @@ export type SnapshotGeneratorConfig = Omit<ExplorerConfig, 'skipExamples'> & {
   fhirVersion?: BaseFhirVersion;
 };
 
-// eslint-disable-next-line no-unused-vars
 export type SnapshotFetcher = (url: string) => Promise<ElementDefinition[]>;

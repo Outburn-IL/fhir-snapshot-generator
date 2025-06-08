@@ -4,46 +4,57 @@
  */
 
 import {
+  defaultLogger,
   DefinitionFetcher,
   resolveBasePackage,
   resolveFhirVersion,
   applyDiffs,
   migrateElements,
-  versionedCacheDir
+  versionedCacheDir,
+  defaultPrethrow,
+  customPrethrower
 } from './utils';
 import path from 'path';
 import fs from 'fs-extra';
 
 import {
   FhirPackageExplorer,
-  ILogger,
   PackageIdentifier,
   FileIndexEntryWithPkg
 } from 'fhir-package-explorer';
 
 import {
+  ILogger,
   BaseFhirVersion,
   ElementDefinition,
   SnapshotCacheMode,
   SnapshotFetcher,
-  SnapshotGeneratorConfig
+  SnapshotGeneratorConfig,
+  Prethrower
 } from '../types';
 
 export class FhirSnapshotGenerator {
   private fpe: FhirPackageExplorer;
   private logger: ILogger;
+  private prethrow: Prethrower;
   private cachePath: string;
   private cacheMode: SnapshotCacheMode;
   private fhirVersion: BaseFhirVersion;
   private fhirCorePackage: PackageIdentifier;
   private resolvedBasePackages: Map<string, string> = new Map<string, string>(); // cache for resolved base packages
 
-  private constructor(fpe: FhirPackageExplorer, cahceMode: SnapshotCacheMode, fhirVersion: BaseFhirVersion) {
+  private constructor(fpe: FhirPackageExplorer, cahceMode: SnapshotCacheMode, fhirVersion: BaseFhirVersion, logger?: ILogger) {
+    if (logger) {
+      this.logger = logger;
+      this.prethrow = customPrethrower(this.logger);
+    } else {
+      this.logger = defaultLogger;
+      this.prethrow = defaultPrethrow;
+    }
     this.cacheMode = cahceMode;
     this.fhirVersion = fhirVersion;
     this.fhirCorePackage = resolveFhirVersion(fhirVersion, true) as PackageIdentifier;
     this.fpe = fpe;
-    this.logger = fpe.getLogger();
     this.cachePath = fpe.getCachePath();
   };
 
@@ -53,64 +64,74 @@ export class FhirSnapshotGenerator {
    * @returns - a promise that resolves to a new instance of the FhirSnapshotGenerator class
    */
   static async create(config: SnapshotGeneratorConfig): Promise<FhirSnapshotGenerator> {
-    const cacheMode = config.cacheMode || 'lazy'; // default cache mode
-    const fhirVersion = resolveFhirVersion(config.fhirVersion || '4.0.1') as BaseFhirVersion; // default FHIR version
-    const fpeConfig = { ...config, skipExamples: true }; // force skipExamples=true
-    delete fpeConfig.cacheMode; // remove cacheMode (fsg-only feature)
-    delete fpeConfig.fhirVersion; // remove fhirVersion (fsg-only feature)
-    let fpe = await FhirPackageExplorer.create(fpeConfig);
-    // check if a base FHIR package is in the fpe context
-    const packagesInContext = fpe.getContextPackages();
-    const fhirCorePackage = resolveFhirVersion(fhirVersion, true) as PackageIdentifier;
-    if (!packagesInContext.find(pkg => pkg.id === fhirCorePackage.id && pkg.version === fhirCorePackage.version)) {
-      fpe.getLogger().warn(`No FHIR base package found in the context for version ${fhirVersion}. Adding: ${fhirCorePackage}.`);
-      fpeConfig.context = [...fpeConfig.context, fhirCorePackage];
-      // replace fpe instance with a new one that includes the base package
-      fpe = await FhirPackageExplorer.create(fpeConfig);
-    };
-    const fsg = new FhirSnapshotGenerator(fpe, cacheMode, fhirVersion);
+    const logger = config.logger || defaultLogger; // use provided logger or default
+    const prethrow = config.logger ? customPrethrower(logger) : defaultPrethrow;
+    
+    try {
+      const cacheMode = config.cacheMode || 'lazy'; // default cache mode
+      const fhirVersion = resolveFhirVersion(config.fhirVersion || '4.0.1') as BaseFhirVersion; // default FHIR version
+      const fpeConfig = { ...config, skipExamples: true }; // force skipExamples=true
 
-    let precache: boolean = false;
+      delete fpeConfig.cacheMode; // remove cacheMode (fsg-only feature)
+      delete fpeConfig.fhirVersion; // remove fhirVersion (fsg-only feature)
+      let fpe = await FhirPackageExplorer.create(fpeConfig);
+      // check if a base FHIR package is in the fpe context
+      const packagesInContext = fpe.getContextPackages();
+      const fhirCorePackage = resolveFhirVersion(fhirVersion, true) as PackageIdentifier;
+      if (!packagesInContext.find(pkg => pkg.id === fhirCorePackage.id && pkg.version === fhirCorePackage.version)) {
+        logger.warn(`No FHIR base package found in the context for version ${fhirVersion}. Adding: ${fhirCorePackage}.`);
+        fpeConfig.context = [...fpeConfig.context, fhirCorePackage];
+        // replace fpe instance with a new one that includes the base package
+        fpe = await FhirPackageExplorer.create(fpeConfig);
+      };
 
-    // 'ensure' and 'rebuild' cache modes both trigger a walkthrough of all structure definitions.
-    // The difference is that 'rebuild' will first delete all existing snapshots in the cache.
-    if (cacheMode === 'rebuild') {
-      precache = true;
-      // delete all existing snapshots in the cache for the packages in the context
-      const packageList = fpe.getContextPackages().map(pkg => path.join(fpe.getCachePath(), `${pkg.id}#${pkg.version}`, '.fsg.snapshots', versionedCacheDir));
-      // for each path, delete the directory if it exists
-      for (const snapshotCacheDir of packageList) {
-        if (await fs.exists(snapshotCacheDir)) {
-          fs.removeSync(snapshotCacheDir);
+      // Create a new FhirSnapshotGenerator instance
+      const fsg = new FhirSnapshotGenerator(fpe, cacheMode, fhirVersion, config.logger);
+
+      let precache: boolean = false;
+
+      // 'ensure' and 'rebuild' cache modes both trigger a walkthrough of all structure definitions.
+      // The difference is that 'rebuild' will first delete all existing snapshots in the cache.
+      if (cacheMode === 'rebuild') {
+        precache = true;
+        // delete all existing snapshots in the cache for the packages in the context
+        const packageList = fpe.getContextPackages().map(pkg => path.join(fpe.getCachePath(), `${pkg.id}#${pkg.version}`, '.fsg.snapshots', versionedCacheDir));
+        // for each path, delete the directory if it exists
+        for (const snapshotCacheDir of packageList) {
+          if (await fs.exists(snapshotCacheDir)) {
+            fs.removeSync(snapshotCacheDir);
+          }
         }
       }
-    }
 
-    if (cacheMode === 'ensure') precache = true;
+      if (cacheMode === 'ensure') precache = true;
 
-    if (precache) {
-      fsg.getLogger().info(`Pre-caching snapshots in '${cacheMode}' mode...`);
-      // lookup all *profiles* in the FPE context and ensure their snapshots are cached.
-      const allSds = await fpe.lookupMeta({ resourceType: 'StructureDefinition', derivation: 'constraint' });
-      const errors: string[] = [];
-      for (const sd of allSds) {
-        const { filename, __packageId: packageId, __packageVersion: packageVersion, url } = sd;
-        try {
-          await fsg.ensureSnapshotCached(filename, packageId, packageVersion);
-        } catch (e) {
-          errors.push(`Failed to ${cacheMode} snapshot for '${url}' in package '${packageId}@${packageVersion}': ${
-            e instanceof Error ? e.message : String(e)
-          }`
-          );
+      if (precache) {
+        logger.info(`Pre-caching snapshots in '${cacheMode}' mode...`);
+        // lookup all *profiles* in the FPE context and ensure their snapshots are cached.
+        const allSds = await fpe.lookupMeta({ resourceType: 'StructureDefinition', derivation: 'constraint' });
+        const errors: string[] = [];
+        for (const sd of allSds) {
+          const { filename, __packageId: packageId, __packageVersion: packageVersion, url } = sd;
+          try {
+            await fsg.ensureSnapshotCached(filename, packageId, packageVersion);
+          } catch (e) {
+            errors.push(`Failed to ${cacheMode} snapshot for '${url}' in package '${packageId}@${packageVersion}': ${
+              e instanceof Error ? e.message : String(e)
+            }`
+            );
+          }
+        }
+        if (errors.length > 0) {
+          logger.error(`Errors during pre-caching snapshots (${errors.length} total):\n${errors.join('\n')}`);
+        } else {
+          logger.info(`Pre-caching snapshots in '${cacheMode}' mode completed successfully.`);
         }
       }
-      if (errors.length > 0) {
-        fpe.getLogger().error(`Errors during pre-caching snapshots (${errors.length} total):\n${errors.join('\n')}`);
-      } else {
-        fpe.getLogger().info(`Pre-caching snapshots in '${cacheMode}' mode completed successfully.`);
-      }
+      return fsg;
+    } catch (e) {
+      throw prethrow(e);
     }
-    return fsg;
   };
 
   public getLogger(): ILogger {
@@ -338,10 +359,14 @@ export class FhirSnapshotGenerator {
    * Get snapshot by any FSH style identifier (id, url or name).
    */
   public async getSnapshot(identifier: string): Promise<any> {
-    const metadata = await this.getMetadata(identifier);
-    if (!metadata) {
-      throw new Error(`StructureDefinition '${identifier}' not found in context. Could not get or generate a snapshot.`);
+    try {
+      const metadata = await this.getMetadata(identifier);
+      if (!metadata) {
+        throw new Error(`StructureDefinition '${identifier}' not found in context. Could not get or generate a snapshot.`);
+      }
+      return await this.getSnapshotByMeta(metadata);
+    } catch (e) {
+      throw this.prethrow(e);
     }
-    return await this.getSnapshotByMeta(metadata);
   }
 };
