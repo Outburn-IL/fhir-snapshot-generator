@@ -62,7 +62,7 @@ const rewrite = (original: string, kind: 'id' | 'path', pathRewriteMap: Map<stri
  * @returns the updated element array after applying the diff elements
  */
 export const applyDiffs = async (elements: ElementDefinition[], diffs: ElementDefinition[], fetcher: DefinitionFetcher, logger: ILogger): Promise<ElementDefinition[]> => {
-  // working snapshot array. will accumulate all chnges and be returned at the end.
+  // working snapshot array. will accumulate all changes and be returned at the end.
   let updatedElements = [...elements];
   
   // map to keep track of path rewrites for shortcut forms of monopolized elements (e.g. "valueString" as a type constraint on "value[x]")
