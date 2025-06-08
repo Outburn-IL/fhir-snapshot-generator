@@ -43,7 +43,7 @@ export class FhirSnapshotGenerator {
   private fhirCorePackage: PackageIdentifier;
   private resolvedBasePackages: Map<string, string> = new Map<string, string>(); // cache for resolved base packages
 
-  private constructor(fpe: FhirPackageExplorer, cahceMode: SnapshotCacheMode, fhirVersion: BaseFhirVersion, logger?: ILogger) {
+  private constructor(fpe: FhirPackageExplorer, cacheMode: SnapshotCacheMode, fhirVersion: BaseFhirVersion, logger?: ILogger) {
     if (logger) {
       this.logger = logger;
       this.prethrow = customPrethrower(this.logger);
@@ -51,7 +51,7 @@ export class FhirSnapshotGenerator {
       this.logger = defaultLogger;
       this.prethrow = defaultPrethrow;
     }
-    this.cacheMode = cahceMode;
+    this.cacheMode = cacheMode;
     this.fhirVersion = fhirVersion;
     this.fhirCorePackage = resolveFhirVersion(fhirVersion, true) as PackageIdentifier;
     this.fpe = fpe;
