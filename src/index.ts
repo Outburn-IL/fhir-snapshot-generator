@@ -370,3 +370,10 @@ export class FhirSnapshotGenerator {
     }
   }
 };
+
+export type {
+  ElementDefinition,
+  ILogger,
+  PackageIdentifier,
+  BaseFhirVersion
+};
