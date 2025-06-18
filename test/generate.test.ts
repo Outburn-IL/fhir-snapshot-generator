@@ -29,6 +29,9 @@ const normalizeSnapshotForTest = (input: any): any => {
           // eslint-disable-next-line no-unused-vars
           constraint: el.constraint?.map(({ source, xpath, ...rest }: any) => rest),
           isSummary: el.isSummary ? el.isSummary : undefined,
+          contentReference: el.contentReference ? (
+            el.contentReference.startsWith('http://hl7.org/fhir/StructureDefinition/') ? '#' + el.contentReference.split('#')[1] : el.contentReference
+          ) : undefined
         };
 
         // 1. Override `type` if base.path === "Resource.id"
@@ -158,6 +161,9 @@ describe('Apply differential to parent snapshot', async () => {
     'SimpleMonopolyExtensionVariation1',
     'SimpleMonopolyExtensionVariation2',
     'vitalsigns',
+    'ExtensionWithPolySlices',
+    'ExtensionWithPolySlice',
+    // 'head-occipital-frontal-circumference-percentile'
     // 'bp' // skipped because original snapshot has both value[x] and value[x]:valueQuantity although it's a monopoly
   ];
 

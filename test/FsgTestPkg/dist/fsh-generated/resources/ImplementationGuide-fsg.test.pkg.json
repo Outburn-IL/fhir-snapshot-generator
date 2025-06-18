@@ -41,6 +41,22 @@
       },
       {
         "reference": {
+          "reference": "StructureDefinition/ExtensionWithPolySlice"
+        },
+        "name": "ExtensionWithPolySlice",
+        "description": "An extension with one slice on value[x]",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
+          "reference": "StructureDefinition/ExtensionWithPolySlices"
+        },
+        "name": "ExtensionWithPolySlices",
+        "description": "An extension with slices on value[x]",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
           "reference": "StructureDefinition/fixed-system-identifier"
         },
         "name": "FixedSystemIdentifier",
