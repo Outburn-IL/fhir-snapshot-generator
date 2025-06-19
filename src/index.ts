@@ -156,13 +156,19 @@ export class FhirSnapshotGenerator {
 
   /**
    * Get the core FHIR package for a specific FHIR package.
-   * Defaults to the FHIR package of this instance's fhirVersion if no base package is found in the dependencies.
-   * @param sourcePackage The source package identifier (e.g., "hl7.fhir.us.core@6.1.0").
+   * Will try to resolve the core package based on the direct dependencies of the source package or its fhirVersions array.
+   * Defaults to the FHIR package of this instance's fhirVersion if no base package can be determined.
+   * @param sourcePackage The source package identifier (e.g., { id: 'hl7.fhir.us.core', version: '6.1.0' }).
+   * @returns The core FHIR package identifier (e.g., { id: 'hl7.fhir.r4.core', version: '4.0.1' }).
    */
   private async getCorePackage(sourcePackage: PackageIdentifier): Promise<PackageIdentifier> {
     let baseFhirPackage: string | undefined = this.resolvedBasePackages.get(`${sourcePackage.id}@${sourcePackage.version}`);
     if (!baseFhirPackage) { // try to resolve by dependency context
-      baseFhirPackage = await resolveBasePackage(sourcePackage.id, sourcePackage.version, this.fpe, this.logger);
+      try {
+        baseFhirPackage = await resolveBasePackage(sourcePackage.id, sourcePackage.version, this.fpe, this.logger);
+      } catch (e) {
+        this.logger.warn(`Failed to resolve base FHIR package for '${sourcePackage.id}@${sourcePackage.version}': ${e instanceof Error ? e.message : String(e)}`);
+      }      
     }
     if (!baseFhirPackage) { // fallback to the default FHIR package
       this.logger.warn(`Defaulting to core package ${this.fhirCorePackage.id}@${this.fhirCorePackage.version} for resolving FHIR types within '${sourcePackage.id}@${sourcePackage.version}'.`);
@@ -299,14 +305,14 @@ export class FhirSnapshotGenerator {
       }
       const migratedBaseSnapshot = migrateElements(baseSnapshot, sd.baseDefinition);
       const generated = await applyDiffs(migratedBaseSnapshot, diffs, fetcher, this.logger);
-      return { ...sd, snapshot: { element: generated } };
+      return { __corePackage: baseFhirPackage, ...sd, snapshot: { element: generated } };
     } catch (e) {
       this.logger.warn(`Failed to generate snapshot for '${sd.url}': ${e instanceof Error ? e.message : String(e)}\nUsing the original StructureDefinition from source package.`);
       // if sd doesn't have a snapshot, throw an error
       if (!sd.snapshot || !sd.snapshot.element || sd.snapshot.element.length === 0) {
         throw new Error(`The original StructureDefinition '${sd.url}' does not have a snapshot`);
       }
-      return { ...sd };
+      return { __corePackage: baseFhirPackage, ...sd };
     }
   }
 
@@ -326,7 +332,7 @@ export class FhirSnapshotGenerator {
       if (!elements || elements.length === 0) {
         throw new Error(`StructureDefinition '${metadata.url}' does not have a snapshot`);
       }
-      return sd;
+      return { __corePackage: { id: packageId, version: packageVersion }, ...sd };
     }
     // It's a profile, return a snapshot from cache or generate a new one
     const cached = this.cacheMode !== 'none' ? await this.getSnapshotFromCache(
