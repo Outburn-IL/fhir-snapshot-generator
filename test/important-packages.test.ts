@@ -71,7 +71,9 @@ describe('Build all snapshots in a list of important packages', async () => {
       logger
     });
 
-    expect(warnings, `Warnings: ${JSON.stringify(warnings, null, 2)}`).toEqual([]);
+    expect(warnings, `Warnings: ${JSON.stringify(warnings, null, 2)}`).toStrictEqual([
+      'No base FHIR package dependency found for de.gematik.fhir.directory@0.11.7.'
+    ]);
     expect(errors, `Errors: ${JSON.stringify(errors, null, 2)}`).toEqual([]);
   }, 480000); // 8min timeout for setup
 

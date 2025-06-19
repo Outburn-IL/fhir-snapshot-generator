@@ -177,7 +177,15 @@ describe('Apply differential to parent snapshot', async () => {
     it(`${sd}: should get identical snapshot to original after applying diff to parent snapshot`, async () => {
       const result = await applyDiffTest(fsg, sd);
       const { compare, applied } = result;
+      delete applied.__corePackage;
       expect(applied).toEqual(compare);
+    });
+
+    it(`${sd}: should get correct core package for the snapshot`, async () => {
+      const sdData = await fsg.getSnapshot(sd);
+      expect(sdData.__corePackage).toBeDefined();
+      expect(sdData.__corePackage.id).toBe('hl7.fhir.r4.core');
+      expect(sdData.__corePackage.version).toBe('4.0.1');
     });
   }
 
