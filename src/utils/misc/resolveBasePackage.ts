@@ -32,6 +32,10 @@ export const resolveBasePackage = async (packageId: string, packageVersion: stri
     logger.warn(`No base FHIR package dependency found for ${packageId}@${packageVersion}.`);
     // Check if the package manifest has a fhirVersions array
     const pkgManifest = await fpe.getPackageManifest({ id: packageId, version: packageVersion });
+    // If it's an old package it may have 'fhir-version-list' instead of 'fhirVersions'. So let's normalize it.
+    if (pkgManifest['fhir-version-list'] && !pkgManifest.fhirVersions) {
+      pkgManifest.fhirVersions = pkgManifest['fhir-version-list'];
+    };
     if (pkgManifest.fhirVersions && pkgManifest.fhirVersions.length > 0) {
       // translate each fhirVersion to a package identifier and push into corePackages
       pkgManifest.fhirVersions.map((fhirVersion: string) => {

@@ -1,6 +1,6 @@
 {
   "name": "fhir-snapshot-generator",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Generate snapshots for FHIR Profiles",
   "main": "dist/index.js",
   "types": "dist/src/index.d.ts",
@@ -55,7 +55,7 @@
     "fsh-sushi": "^3.16.0",
     "rimraf": "^6.0.1",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.34.1",
+    "typescript-eslint": "^8.35.0",
     "vitest": "^3.2.4"
   }
 }
