@@ -362,13 +362,23 @@ export class FhirSnapshotGenerator {
   }
 
   /**
-   * Get snapshot by any FSH style identifier (id, url or name).
+   * Get snapshot by any FSH style identifier (id, url or name), or by a metadata object.
    */
-  public async getSnapshot(identifier: string, packageFilter?: PackageIdentifier): Promise<any> {
+  public async getSnapshot(identifier: string | FileIndexEntryWithPkg, packageFilter?: PackageIdentifier): Promise<any> {
     try {
-      const metadata = await this.getMetadata(identifier, packageFilter);
-      if (!metadata) {
-        throw new Error(`StructureDefinition '${identifier}' not found in context. Could not get or generate a snapshot.`);
+      let metadata: FileIndexEntryWithPkg | undefined;
+      if (typeof identifier === 'string') {
+        // If identifier is a string, resolve it to metadata
+        metadata = await this.getMetadata(identifier, packageFilter);
+        if (!metadata) {
+          throw new Error(`StructureDefinition '${identifier}' not found in context. Could not get or generate a snapshot.`);
+        }
+      } else {
+        metadata = identifier as FileIndexEntryWithPkg;
+        if (!metadata) {
+          // create a human readable string from the metadata object
+          throw new Error(`StructureDefinition with metadata: \n${JSON.stringify(identifier, null, 2)}\nnot found in context. Could not get or generate a snapshot.`);
+        }
       }
       return await this.getSnapshotByMeta(metadata);
     } catch (e) {
