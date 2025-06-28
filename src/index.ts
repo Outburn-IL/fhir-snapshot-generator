@@ -226,25 +226,52 @@ export class FhirSnapshotGenerator {
    * Fetch StructureDefinition metadata by any identifier (id, url, name) - FSH style.
    * @param identifier 
    */
-  private async getMetadata(identifier: string, packageFilter?: PackageIdentifier): Promise<FileIndexEntryWithPkg> {
+  public async getMetadata(identifier: string, packageFilter?: PackageIdentifier): Promise<FileIndexEntryWithPkg> {
     const errors: any[] = [];
     if (identifier.startsWith('http:') || identifier.startsWith('https:') || identifier.includes(':')) {
       // the identifier is possibly a URL/URN - try and resolve it as such
       try {
-        return await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', url: identifier, package: packageFilter });
+        const matches = await this.fpe.lookupMeta({ resourceType: 'StructureDefinition', url: identifier, package: packageFilter });
+        if (matches.length === 0) {
+          errors.push(new Error(`No StructureDefinition found for URL '${identifier}'`));
+        }
+        if (matches.length > 1) {
+          errors.push(new Error(`Multiple StructureDefinitions found for URL '${identifier}': ${matches.map(m => m.url).join(', ')}`));
+        }
+        if (matches.length === 1) {
+          return matches[0]; // return the single match
+        }
       } catch (e) {
         errors.push(e);
       }
     };
     // Not a URL, or failed to resolve as URL - try and resolve it as ID
     try {
-      return await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', id: identifier, package: packageFilter });;
+      const matches = await this.fpe.lookupMeta({ resourceType: 'StructureDefinition', id: identifier, package: packageFilter });
+      if (matches.length === 0) {
+        errors.push(new Error(`No StructureDefinition found for ID '${identifier}'`));
+      }
+      if (matches.length > 1) {
+        errors.push(new Error(`Multiple StructureDefinitions found for ID '${identifier}': ${matches.map(m => m.id).join(', ')}`));
+      }
+      if (matches.length === 1) {
+        return matches[0]; // return the single match
+      }
     } catch (e) {
       errors.push(e);
     };
     // Couldn't resolve as ID - try and resolve it as name
     try {
-      return await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', name: identifier, package: packageFilter });
+      const matches = await this.fpe.lookupMeta({ resourceType: 'StructureDefinition', name: identifier, package: packageFilter });
+      if (matches.length === 0) {
+        errors.push(new Error(`No StructureDefinition found for name '${identifier}'`));
+      }
+      if (matches.length > 1) {
+        errors.push(new Error(`Multiple StructureDefinitions found for name '${identifier}': ${matches.map(m => m.name).join(', ')}`));
+      }
+      if (matches.length === 1) {
+        return matches[0]; // return the single match
+      }
     } catch (e) {
       errors.push(e);
     }
@@ -362,13 +389,23 @@ export class FhirSnapshotGenerator {
   }
 
   /**
-   * Get snapshot by any FSH style identifier (id, url or name).
+   * Get snapshot by any FSH style identifier (id, url or name), or by a metadata object.
    */
-  public async getSnapshot(identifier: string, packageFilter?: PackageIdentifier): Promise<any> {
+  public async getSnapshot(identifier: string | FileIndexEntryWithPkg, packageFilter?: PackageIdentifier): Promise<any> {
     try {
-      const metadata = await this.getMetadata(identifier, packageFilter);
-      if (!metadata) {
-        throw new Error(`StructureDefinition '${identifier}' not found in context. Could not get or generate a snapshot.`);
+      let metadata: FileIndexEntryWithPkg | undefined;
+      if (typeof identifier === 'string') {
+        // If identifier is a string, resolve it to metadata
+        metadata = await this.getMetadata(identifier, packageFilter);
+        if (!metadata) {
+          throw new Error(`StructureDefinition '${identifier}' not found in context. Could not get or generate a snapshot.`);
+        }
+      } else {
+        metadata = identifier as FileIndexEntryWithPkg;
+        if (!metadata) {
+          // create a human readable string from the metadata object
+          throw new Error(`StructureDefinition with metadata: \n${JSON.stringify(identifier, null, 2)}\nnot found in context. Could not get or generate a snapshot.`);
+        }
       }
       return await this.getSnapshotByMeta(metadata);
     } catch (e) {
