@@ -231,20 +231,47 @@ export class FhirSnapshotGenerator {
     if (identifier.startsWith('http:') || identifier.startsWith('https:') || identifier.includes(':')) {
       // the identifier is possibly a URL/URN - try and resolve it as such
       try {
-        return await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', url: identifier, package: packageFilter });
+        const matches = await this.fpe.lookupMeta({ resourceType: 'StructureDefinition', url: identifier, package: packageFilter });
+        if (matches.length === 0) {
+          errors.push(new Error(`No StructureDefinition found for URL '${identifier}'`));
+        }
+        if (matches.length > 1) {
+          errors.push(new Error(`Multiple StructureDefinitions found for URL '${identifier}': ${matches.map(m => m.url).join(', ')}`));
+        }
+        if (matches.length === 1) {
+          return matches[0]; // return the single match
+        }
       } catch (e) {
         errors.push(e);
       }
     };
     // Not a URL, or failed to resolve as URL - try and resolve it as ID
     try {
-      return await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', id: identifier, package: packageFilter });;
+      const matches = await this.fpe.lookupMeta({ resourceType: 'StructureDefinition', id: identifier, package: packageFilter });
+      if (matches.length === 0) {
+        errors.push(new Error(`No StructureDefinition found for ID '${identifier}'`));
+      }
+      if (matches.length > 1) {
+        errors.push(new Error(`Multiple StructureDefinitions found for ID '${identifier}': ${matches.map(m => m.id).join(', ')}`));
+      }
+      if (matches.length === 1) {
+        return matches[0]; // return the single match
+      }
     } catch (e) {
       errors.push(e);
     };
     // Couldn't resolve as ID - try and resolve it as name
     try {
-      return await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', name: identifier, package: packageFilter });
+      const matches = await this.fpe.lookupMeta({ resourceType: 'StructureDefinition', name: identifier, package: packageFilter });
+      if (matches.length === 0) {
+        errors.push(new Error(`No StructureDefinition found for name '${identifier}'`));
+      }
+      if (matches.length > 1) {
+        errors.push(new Error(`Multiple StructureDefinitions found for name '${identifier}': ${matches.map(m => m.name).join(', ')}`));
+      }
+      if (matches.length === 1) {
+        return matches[0]; // return the single match
+      }
     } catch (e) {
       errors.push(e);
     }
