@@ -226,7 +226,7 @@ export class FhirSnapshotGenerator {
    * Fetch StructureDefinition metadata by any identifier (id, url, name) - FSH style.
    * @param identifier 
    */
-  private async getMetadata(identifier: string, packageFilter?: PackageIdentifier): Promise<FileIndexEntryWithPkg> {
+  public async getMetadata(identifier: string, packageFilter?: PackageIdentifier): Promise<FileIndexEntryWithPkg> {
     const errors: any[] = [];
     if (identifier.startsWith('http:') || identifier.startsWith('https:') || identifier.includes(':')) {
       // the identifier is possibly a URL/URN - try and resolve it as such
