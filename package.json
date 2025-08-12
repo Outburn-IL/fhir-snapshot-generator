@@ -1,6 +1,6 @@
 {
   "name": "fhir-snapshot-generator",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "Generate snapshots for FHIR Profiles",
   "main": "dist/index.js",
   "types": "dist/src/index.d.ts",
