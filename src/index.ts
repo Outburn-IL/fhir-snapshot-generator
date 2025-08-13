@@ -541,7 +541,13 @@ export class FhirSnapshotGenerator {
 
     // Check cache
     const cached = this.cacheMode !== 'none' ? await this.getExpansionFromCache(filename, packageId, packageVersion) : undefined;
-    if (cached) return cached;
+    if (cached) {
+      if (cached?.expansion?.__failure === true) {
+        // Prior attempt already failed; short-circuit without recomputation
+        throw new Error(`Previous expansion attempt failed for ValueSet '${(cached.url || cached.id || filename)}' (cached).`);
+      }
+      return cached;
+    }
 
     // Load original VS
     const vs = await this.getValueSetByFileName(filename, packageId, packageVersion);
@@ -582,6 +588,11 @@ export class FhirSnapshotGenerator {
           await this.saveExpansionToCache(filename, packageId, packageVersion, vs);
         }
         return vs;
+      }
+      // No usable fallback expansion. Cache a stub marking failure to avoid repeated expensive retries.
+      if (this.cacheMode !== 'none') {
+        const failureStub = { ...vs, expansion: { timestamp: new Date().toISOString(), __failure: true } };
+        try { await this.saveExpansionToCache(filename, packageId, packageVersion, failureStub); } catch { /* ignore */ }
       }
       throw e;
     }
