@@ -674,8 +674,8 @@ export class FhirSnapshotGenerator {
    */
   public async resolveCompleteCodeSystem(url: string, sourcePackage: PackageIdentifier): Promise<any> {
     try {
-      if (!url || !url.includes('://')) {
-        throw new Error(`CodeSystem canonical URL expected. Got '${url}'.`);
+      if (!url) {
+        throw new Error('CodeSystem canonical URL missing.');
       }
 
       // Prefer a semver-aware single resolution inside the source package context first.
