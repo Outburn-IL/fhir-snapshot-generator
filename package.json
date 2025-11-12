@@ -1,15 +1,24 @@
 {
   "name": "fhir-snapshot-generator",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "description": "Generate snapshots for FHIR Profiles",
-  "main": "dist/index.js",
-  "types": "dist/src/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
   "author": "Outburn Ltd.",
   "license": "Apache-2.0",
   "scripts": {
-    "build": "rimraf dist && ncc build src/index.ts --external fhir-package-explorer --minify --no-cache --out dist",
-    "build:test:wip": "rimraf test/wip && ncc build test/wip.ts --external fhir-package-explorer --external fs-extra --minify --no-cache --out test/wip",
+    "build": "npm run clean && tsup",
+    "clean": "rimraf dist",
+    "build:test:wip": "rimraf test/wip && tsup test/wip.ts --format cjs --outDir test/wip --external fhir-package-explorer --external fs-extra --minify --no-splitting --no-dts --external fhir-snapshot-generator",
     "build:sushi": "rimraf test/FsgTestPkg/dist && sushi -s test/FsgTestPkg -o test/FsgTestPkg/dist && node test/create-fsh-manifest.js && npm run install:fsh-package",
     "install:fsh-package": "node test/install-fsh-package.js",
     "clear:cache": "rimraf test/.test-cache",
@@ -19,7 +28,7 @@
     "pretest:hard": "npm run clear:cache && npm run build:sushi && npm run pretest",
     "test": "vitest run",
     "test:hard": "npm run pretest:hard && vitest run",
-    "test:wip": "npm run build:test:wip && npm run install:fsh-package && node test/wip/index.js"
+    "test:wip": "npm run dist-to-module && npm run build:test:wip && npm run install:fsh-package && node test/wip/wip.cjs"
   },
   "keywords": [
     "fhir",
@@ -44,18 +53,18 @@
     "url": "git+https://github.com/Outburn-IL/fhir-snapshot-generator.git"
   },
   "dependencies": {
-    "fhir-package-explorer": "^1.3.2",
-    "fs-extra": "^11.3.1"
+    "fhir-package-explorer": "^1.4.0",
+    "fs-extra": "^11.3.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",
     "@types/fs-extra": "^11.0.4",
-    "@vercel/ncc": "^0.38.3",
-    "eslint": "^9.33.0",
-    "fsh-sushi": "^3.16.3",
-    "rimraf": "^6.0.1",
-    "typescript": "^5.9.2",
-    "typescript-eslint": "^8.39.1",
+    "eslint": "^9.39.1",
+    "fsh-sushi": "^3.16.5",
+    "rimraf": "^6.1.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.4",
     "vitest": "^3.2.4"
   }
 }

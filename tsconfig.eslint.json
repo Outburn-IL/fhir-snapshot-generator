@@ -4,6 +4,7 @@
     "src/**/*.ts",
     "types/**/*.ts",
     "test",
+    "*.ts"
   ],
   "exclude": [
     "dist/**/*",
