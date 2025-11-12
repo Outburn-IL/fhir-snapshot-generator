@@ -730,6 +730,19 @@ export class FhirSnapshotGenerator {
 export type {
   ElementDefinition,
   ILogger,
-  PackageIdentifier,
-  BaseFhirVersion
-};
+  BaseFhirVersion,
+  SnapshotCacheMode,
+  SnapshotGeneratorConfig,
+  SnapshotFetcher,
+  Prethrower,
+  FhirExtensionInstance,
+  ElementConstraint,
+  ElementDefinitionType,
+  ElementDefinitionSlicing,
+  SlicingDiscriminator,
+  ElementDefinitionBinding,
+  FhirTreeNode
+} from '../types';
+
+// Re-export useful types from dependencies
+export type { PackageIdentifier } from 'fhir-package-explorer';
