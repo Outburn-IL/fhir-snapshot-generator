@@ -1,6 +1,6 @@
 {
   "name": "fhir-snapshot-generator",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Generate snapshots for FHIR Profiles",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
@@ -53,7 +53,7 @@
     "url": "git+https://github.com/Outburn-IL/fhir-snapshot-generator.git"
   },
   "dependencies": {
-    "fhir-package-explorer": "^1.4.0",
+    "fhir-package-explorer": "^1.5.1",
     "fs-extra": "^11.3.2"
   },
   "devDependencies": {
@@ -62,9 +62,9 @@
     "eslint": "^9.39.1",
     "fsh-sushi": "^3.16.5",
     "rimraf": "^6.1.0",
-    "tsup": "^8.5.0",
+    "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.4",
+    "typescript-eslint": "^8.47.0",
     "vitest": "^3.2.4"
   }
 }
