@@ -251,47 +251,23 @@ export class FhirSnapshotGenerator {
     if (identifier.startsWith('http:') || identifier.startsWith('https:') || identifier.includes(':')) {
       // the identifier is possibly a URL/URN - try and resolve it as such
       try {
-        const matches = await this.fpe.lookupMeta({ resourceType: 'StructureDefinition', url: identifier, package: packageFilter });
-        if (matches.length === 0) {
-          errors.push(new Error(`No StructureDefinition found for URL '${identifier}'`));
-        }
-        if (matches.length > 1) {
-          errors.push(new Error(`Multiple StructureDefinitions found for URL '${identifier}': ${matches.map(m => m.url).join(', ')}`));
-        }
-        if (matches.length === 1) {
-          return matches[0]; // return the single match
-        }
+        const match = await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', url: identifier, package: packageFilter });
+        return match; // return the resolved match (with core-bias applied)
       } catch (e) {
         errors.push(e);
       }
     }
     // Not a URL, or failed to resolve as URL - try and resolve it as ID
     try {
-      const matches = await this.fpe.lookupMeta({ resourceType: 'StructureDefinition', id: identifier, package: packageFilter });
-      if (matches.length === 0) {
-        errors.push(new Error(`No StructureDefinition found for ID '${identifier}'`));
-      }
-      if (matches.length > 1) {
-        errors.push(new Error(`Multiple StructureDefinitions found for ID '${identifier}': ${matches.map(m => m.id).join(', ')}`));
-      }
-      if (matches.length === 1) {
-        return matches[0]; // return the single match
-      }
+      const match = await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', id: identifier, package: packageFilter });
+      return match; // return the resolved match (with core-bias applied)
     } catch (e) {
       errors.push(e);
     }
     // Couldn't resolve as ID - try and resolve it as name
     try {
-      const matches = await this.fpe.lookupMeta({ resourceType: 'StructureDefinition', name: identifier, package: packageFilter });
-      if (matches.length === 0) {
-        errors.push(new Error(`No StructureDefinition found for name '${identifier}'`));
-      }
-      if (matches.length > 1) {
-        errors.push(new Error(`Multiple StructureDefinitions found for name '${identifier}': ${matches.map(m => m.name).join(', ')}`));
-      }
-      if (matches.length === 1) {
-        return matches[0]; // return the single match
-      }
+      const match = await this.fpe.resolveMeta({ resourceType: 'StructureDefinition', name: identifier, package: packageFilter });
+      return match; // return the resolved match (with core-bias applied)
     } catch (e) {
       errors.push(e);
     }
@@ -396,24 +372,27 @@ export class FhirSnapshotGenerator {
     const errors: any[] = [];
     if (identifier.startsWith('http:') || identifier.startsWith('https:') || identifier.includes(':')) {
       try {
-        const matches = await this.fpe.lookupMeta({ resourceType: 'ValueSet', url: identifier, package: packageFilter });
-        if (matches.length === 1) return matches[0];
-        if (matches.length === 0) errors.push(new Error(`No ValueSet found for URL '${identifier}'`));
-        if (matches.length > 1) errors.push(new Error(`Multiple ValueSets found for URL '${identifier}': ${matches.map(m => m.url).join(', ')}`));
-      } catch (e) { errors.push(e); }
+        const match = await this.fpe.resolveMeta({ resourceType: 'ValueSet', url: identifier, package: packageFilter });
+        return match; // return the resolved match (with core-bias applied)
+      } catch (e) {
+        errors.push(e);
+      }
     }
+    // Not a URL, or failed to resolve as URL - try and resolve it as ID
     try {
-      const matches = await this.fpe.lookupMeta({ resourceType: 'ValueSet', id: identifier, package: packageFilter });
-      if (matches.length === 1) return matches[0];
-      if (matches.length === 0) errors.push(new Error(`No ValueSet found for ID '${identifier}'`));
-      if (matches.length > 1) errors.push(new Error(`Multiple ValueSets found for ID '${identifier}': ${matches.map(m => m.id).join(', ')}`));
-    } catch (e) { errors.push(e); }
+      const match = await this.fpe.resolveMeta({ resourceType: 'ValueSet', id: identifier, package: packageFilter });
+      return match; // return the resolved match (with core-bias applied)
+    } catch (e) {
+      errors.push(e);
+    }
+    // Couldn't resolve as ID - try and resolve it as name
     try {
-      const matches = await this.fpe.lookupMeta({ resourceType: 'ValueSet', name: identifier, package: packageFilter });
-      if (matches.length === 1) return matches[0];
-      if (matches.length === 0) errors.push(new Error(`No ValueSet found for name '${identifier}'`));
-      if (matches.length > 1) errors.push(new Error(`Multiple ValueSets found for name '${identifier}': ${matches.map(m => m.name).join(', ')}`));
-    } catch (e) { errors.push(e); }
+      const match = await this.fpe.resolveMeta({ resourceType: 'ValueSet', name: identifier, package: packageFilter });
+      return match; // return the resolved match (with core-bias applied)
+    } catch (e) {
+      errors.push(e);
+    }
+    // Couldn't resolve at all - throw all errors
     errors.map(e => this.logger.error(e));
     throw new Error(`Failed to resolve ValueSet '${identifier}'`);
   }
@@ -474,11 +453,17 @@ export class FhirSnapshotGenerator {
       }
       visited.add(vsUrl);
       // resolve referenced ValueSet metadata first within source package, then fallback globally
-      let vsMetaList = await this.fpe.lookupMeta({ resourceType: 'ValueSet', url: vsUrl, package: sourcePackage });
-      if (vsMetaList.length === 0) vsMetaList = await this.fpe.lookupMeta({ resourceType: 'ValueSet', url: vsUrl });
-      if (vsMetaList.length === 0) throw new Error(`Referenced ValueSet '${vsUrl}' not found (searched locally, then globally).`);
-      if (vsMetaList.length > 1) throw new Error(`Multiple ValueSets with URL '${vsUrl}' found in context.`);
-      const vsExpanded = await this.expandValueSetByMeta(vsMetaList[0], visited);
+      let vsMeta: FileIndexEntryWithPkg;
+      try {
+        vsMeta = await this.fpe.resolveMeta({ resourceType: 'ValueSet', url: vsUrl, package: sourcePackage });
+      } catch {
+        try {
+          vsMeta = await this.fpe.resolveMeta({ resourceType: 'ValueSet', url: vsUrl });
+        } catch {
+          throw new Error(`Referenced ValueSet '${vsUrl}' not found (searched locally, then globally).`);
+        }
+      }
+      const vsExpanded = await this.expandValueSetByMeta(vsMeta, visited);
       const map = this.toSystemCodeMapFromContains(vsExpanded?.expansion?.contains);
       this.mergeSystemMaps(vsUnion, map);
     }
