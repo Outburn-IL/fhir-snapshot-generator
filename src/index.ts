@@ -481,12 +481,19 @@ export class FhirSnapshotGenerator {
         let csDict: Map<string, string | undefined> | undefined;
         const needsCsLookup = include.concept.some((c: any) => !c?.display);
         if (needsCsLookup) {
-          const cs = await this.resolveCompleteCodeSystem(systemUrl, sourcePackage);
-          csDict = this.flattenCodeSystemConcepts(cs);
+          try {
+            const cs = await this.resolveCompleteCodeSystem(systemUrl, sourcePackage);
+            csDict = this.flattenCodeSystemConcepts(cs);
+          } catch (e) {
+            // CodeSystem lookup failed (e.g., content='not-present' like UCUM)
+            // Fall back to using code as display (matches HL7 spec behavior)
+            this.logger.warn(`CodeSystem lookup failed for '${systemUrl}', using codes as displays: ${e instanceof Error ? e.message : String(e)}`);
+            csDict = undefined;
+          }
         }
         for (const c of include.concept) {
           if (!c?.code) continue;
-          const display: string | undefined = typeof c.display === 'string' ? c.display : csDict?.get(c.code);
+          const display: string | undefined = typeof c.display === 'string' ? c.display : (csDict?.get(c.code) ?? c.code);
           if (!codesForSystem.has(c.code)) codesForSystem.set(c.code, display);
         }
       } else {
