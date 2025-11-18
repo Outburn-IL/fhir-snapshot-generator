@@ -84,4 +84,25 @@ describe('ValueSet expansion (integration)', () => {
     expect(codes.has('mg')).toBe(true);
     expect(codes.has('mm[Hg]')).toBe(true);
   });
+
+  it('ucum-bodytemp: body temperature units from UCUM', async () => {
+    const vs = await fsg.expandValueSet('http://hl7.org/fhir/ValueSet/ucum-bodytemp');
+    expect(vs?.expansion?.contains).toBeTruthy();
+    const flat = flattenContains(vs.expansion.contains);
+    const system = 'http://unitsofmeasure.org';
+    const codes = flat.filter(c => c.system === system);
+    
+    // Verify the expected codes are present
+    const codeValues = codes.map(c => c.code);
+    expect(codeValues).toEqual(expect.arrayContaining(['Cel', '[degF]']));
+    
+    // Verify the displays (when CodeSystem lookup fails, codes are used as displays)
+    const celEntry = codes.find(c => c.code === 'Cel');
+    const degFEntry = codes.find(c => c.code === '[degF]');
+    expect(celEntry?.display).toBe('Cel');
+    expect(degFEntry?.display).toBe('[degF]');
+    
+    // Should contain exactly these 2 codes
+    expect(codes.length).toBe(2);
+  });
 });
