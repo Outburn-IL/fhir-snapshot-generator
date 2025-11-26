@@ -486,14 +486,14 @@ export class FhirSnapshotGenerator {
             csDict = this.flattenCodeSystemConcepts(cs);
           } catch (e) {
             // CodeSystem lookup failed (e.g., content='not-present' like UCUM)
-            // Fall back to using code as display (matches HL7 spec behavior)
-            this.logger.warn(`CodeSystem lookup failed for '${systemUrl}', using codes as displays: ${e instanceof Error ? e.message : String(e)}`);
+            // Do not fall back to code as display - leave display undefined for downstream consumers to decide
+            this.logger.warn(`CodeSystem lookup failed for '${systemUrl}', display values will be omitted: ${e instanceof Error ? e.message : String(e)}`);
             csDict = undefined;
           }
         }
         for (const c of include.concept) {
           if (!c?.code) continue;
-          const display: string | undefined = typeof c.display === 'string' ? c.display : (csDict?.get(c.code) ?? c.code);
+          const display: string | undefined = typeof c.display === 'string' ? c.display : csDict?.get(c.code);
           if (!codesForSystem.has(c.code)) codesForSystem.set(c.code, display);
         }
       } else {
