@@ -39,7 +39,11 @@ export function buildExpansionFromSystemMap(map: SystemCodeMap): { contains: any
   const contains: any[] = [];
   for (const [system, codes] of map.entries()) {
     for (const [code, display] of codes.entries()) {
-      contains.push({ system, code, display });
+      const concept: any = { system, code };
+      if (display !== undefined) {
+        concept.display = display;
+      }
+      contains.push(concept);
     }
   }
   return { contains, total: contains.length };
