@@ -7,7 +7,13 @@ function flattenContains(contains: any[] | undefined): Array<{ system?: string; 
   const walk = (list: any[] | undefined) => {
     if (!Array.isArray(list)) return;
     for (const item of list) {
-      if (item && item.code) out.push({ system: item.system, code: item.code, display: item.display });
+      if (item && item.code) {
+        const flattened: any = { system: item.system, code: item.code };
+        if ('display' in item) {
+          flattened.display = item.display;
+        }
+        out.push(flattened);
+      }
       if (Array.isArray(item.contains)) walk(item.contains);
     }
   };
@@ -96,11 +102,15 @@ describe('ValueSet expansion (integration)', () => {
     const codeValues = codes.map(c => c.code);
     expect(codeValues).toEqual(expect.arrayContaining(['Cel', '[degF]']));
     
-    // Verify the displays (when CodeSystem lookup fails, codes are used as displays)
+    // Verify the displays are omitted when CodeSystem lookup fails (no display property should be present)
     const celEntry = codes.find(c => c.code === 'Cel');
     const degFEntry = codes.find(c => c.code === '[degF]');
-    expect(celEntry?.display).toBe('Cel');
-    expect(degFEntry?.display).toBe('[degF]');
+    expect(celEntry?.display).toBeUndefined();
+    expect(degFEntry?.display).toBeUndefined();
+    
+    // Verify that display property is not present at all (not just undefined)
+    expect('display' in celEntry!).toBe(false);
+    expect('display' in degFEntry!).toBe(false);
     
     // Should contain exactly these 2 codes
     expect(codes.length).toBe(2);
