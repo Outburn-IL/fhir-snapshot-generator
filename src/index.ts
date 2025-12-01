@@ -17,7 +17,8 @@ import {
   toSystemCodeMapFromContains,
   mergeSystemMaps,
   subtractSystemMaps,
-  buildExpansionFromSystemMap
+  buildExpansionFromSystemMap,
+  ImplicitCodeSystemRegistry
 } from './utils';
 import path from 'path';
 import fs from 'fs-extra';
@@ -485,10 +486,16 @@ export class FhirSnapshotGenerator {
             const cs = await this.resolveCompleteCodeSystem(systemUrl, sourcePackage);
             csDict = this.flattenCodeSystemConcepts(cs);
           } catch (e) {
-            // CodeSystem lookup failed (e.g., content='not-present' like UCUM)
-            // Do not fall back to code as display - leave display undefined for downstream consumers to decide
-            this.logger.warn(`CodeSystem lookup failed for '${systemUrl}', display values will be omitted: ${e instanceof Error ? e.message : String(e)}`);
-            csDict = undefined;
+            // Try implicit code systems before failing
+            if (ImplicitCodeSystemRegistry.isImplicitCodeSystem(systemUrl)) {
+              csDict = ImplicitCodeSystemRegistry.getConcepts(systemUrl);
+              this.logger.info(`Using implicit code system for '${systemUrl}'`);
+            } else {
+              // CodeSystem lookup failed (e.g., content='not-present' like UCUM)
+              // Do not fall back to code as display - leave display undefined for downstream consumers to decide
+              this.logger.warn(`CodeSystem lookup failed for '${systemUrl}', display values will be omitted: ${e instanceof Error ? e.message : String(e)}`);
+              csDict = undefined;
+            }
           }
         }
         for (const c of include.concept) {
@@ -498,8 +505,23 @@ export class FhirSnapshotGenerator {
         }
       } else {
         // all concepts from CodeSystem
-        const cs = await this.resolveCompleteCodeSystem(systemUrl, sourcePackage);
-        codesForSystem = this.flattenCodeSystemConcepts(cs);
+        try {
+          const cs = await this.resolveCompleteCodeSystem(systemUrl, sourcePackage);
+          codesForSystem = this.flattenCodeSystemConcepts(cs);
+        } catch (e) {
+          // Try implicit code systems before failing
+          if (ImplicitCodeSystemRegistry.isImplicitCodeSystem(systemUrl)) {
+            const implicitConcepts = ImplicitCodeSystemRegistry.getConcepts(systemUrl);
+            if (implicitConcepts) {
+              codesForSystem = implicitConcepts;
+              this.logger.info(`Using implicit code system for '${systemUrl}'`);
+            } else {
+              throw e;
+            }
+          } else {
+            throw e;
+          }
+        }
       }
       conceptMap.set(systemUrl, codesForSystem);
     }
@@ -681,6 +703,27 @@ export class FhirSnapshotGenerator {
         throw new Error('CodeSystem canonical URL missing.');
       }
 
+      // Check if this is an implicit code system first
+      if (ImplicitCodeSystemRegistry.isImplicitCodeSystem(url)) {
+        // Return a synthetic CodeSystem resource with content='complete'
+        const concepts = ImplicitCodeSystemRegistry.getConcepts(url);
+        if (!concepts) {
+          throw new Error(`Implicit CodeSystem '${url}' provider returned no concepts.`);
+        }
+        
+        // Create a synthetic CodeSystem resource
+        return {
+          resourceType: 'CodeSystem',
+          url,
+          status: 'active',
+          content: 'complete',
+          concept: Array.from(concepts.entries()).map(([code, display]) => ({
+            code,
+            display
+          }))
+        };
+      }
+
       // Prefer a semver-aware single resolution inside the source package context first.
       // resolveMeta will internally pick the best version match instead of returning multiples.
       let meta: any | undefined;
@@ -738,3 +781,6 @@ export type {
 
 // Re-export useful types from dependencies
 export type { PackageIdentifier } from 'fhir-package-explorer';
+
+// Export implicit code systems for external usage
+export { ImplicitCodeSystemRegistry } from './utils';
