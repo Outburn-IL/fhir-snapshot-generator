@@ -28,17 +28,20 @@ export interface ImplicitCodeSystemProvider {
  */
 class Iso3166CountryCodesProvider implements ImplicitCodeSystemProvider {
   public readonly canonicalUrl = 'urn:iso:std:iso:3166';
+  private conceptsCache?: Map<string, string | undefined>;
 
   public getConcepts(): Map<string, string | undefined> {
-    const concepts = new Map<string, string | undefined>();
-    
-    // Load ISO 3166-1 codes from JSON data file
-    // The JSON contains both alpha-2 and alpha-3 codes with their display names
-    for (const [code, name] of Object.entries(iso3166Data)) {
-      concepts.set(code, name);
+    if (!this.conceptsCache) {
+      this.conceptsCache = new Map<string, string | undefined>();
+      
+      // Load ISO 3166-1 codes from JSON data file
+      // The JSON contains both alpha-2 and alpha-3 codes with their display names
+      for (const [code, name] of Object.entries(iso3166Data)) {
+        this.conceptsCache.set(code, name);
+      }
     }
     
-    return concepts;
+    return this.conceptsCache;
   }
 }
 
@@ -56,31 +59,34 @@ class Iso3166CountryCodesProvider implements ImplicitCodeSystemProvider {
  */
 class Bcp47LanguageCodesProvider implements ImplicitCodeSystemProvider {
   public readonly canonicalUrl = 'urn:ietf:bcp:47';
+  private conceptsCache?: Map<string, string | undefined>;
 
   public getConcepts(): Map<string, string | undefined> {
-    const concepts = new Map<string, string | undefined>();
-    
-    // Load BCP 47 language codes from JSON data file
-    // The JSON contains both primary language codes and common language-region combinations
-    for (const [code, display] of Object.entries(bcp47LanguageData)) {
-      // BCP 47 codes are case-insensitive, normalize to standard format
-      // Language codes are lowercase, country codes are uppercase
-      const normalizedCode = this.normalizeBcp47Code(code);
-      concepts.set(normalizedCode, display);
+    if (!this.conceptsCache) {
+      this.conceptsCache = new Map<string, string | undefined>();
       
-      // Also accept the original case for compatibility
-      if (normalizedCode !== code) {
-        concepts.set(code, display);
-      }
-      
-      // Accept underscore variants (e.g., en_US for en-US) for compatibility
-      if (code.includes('-')) {
-        const underscoreVariant = code.replace(/-/g, '_');
-        concepts.set(underscoreVariant, display);
+      // Load BCP 47 language codes from JSON data file
+      // The JSON contains both primary language codes and common language-region combinations
+      for (const [code, display] of Object.entries(bcp47LanguageData)) {
+        // BCP 47 codes are case-insensitive, normalize to standard format
+        // Language codes are lowercase, country codes are uppercase
+        const normalizedCode = this.normalizeBcp47Code(code);
+        this.conceptsCache.set(normalizedCode, display);
+        
+        // Also accept the original case for compatibility
+        if (normalizedCode !== code) {
+          this.conceptsCache.set(code, display);
+        }
+        
+        // Accept underscore variants (e.g., en_US for en-US) for compatibility
+        if (code.includes('-')) {
+          const underscoreVariant = code.replace(/-/g, '_');
+          this.conceptsCache.set(underscoreVariant, display);
+        }
       }
     }
     
-    return concepts;
+    return this.conceptsCache;
   }
 
   private normalizeBcp47Code(code: string): string {
