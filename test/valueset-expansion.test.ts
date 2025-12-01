@@ -75,8 +75,40 @@ describe('ValueSet expansion (integration)', () => {
     expect(flat.some(c => c.system === 'http://loinc.org' && c.code === '2093-3')).toBe(true);
   });
 
-  it('all-languages: fails because CodeSystem cannot be resolved/complete', async () => {
-    await expect(fsg.expandValueSet('all-languages')).rejects.toThrow();
+  it('all-languages: successfully expands using BCP 47 implicit code system', async () => {
+    const result = await fsg.expandValueSet('all-languages');
+    
+    expect(result).toBeDefined();
+    expect(result.expansion).toBeDefined();
+    expect(result.expansion.total).toBeGreaterThan(400); // Should have many language codes
+    expect(result.expansion.contains.length).toBeGreaterThan(400);
+    
+    // Check for common language codes
+    const codes = result.expansion.contains.map((c: any) => c.code);
+    expect(codes).toContain('en');
+    expect(codes).toContain('fr');
+    expect(codes).toContain('de');
+    expect(codes).toContain('es');
+    expect(codes).toContain('zh');
+    expect(codes).toContain('ja');
+    expect(codes).toContain('ar');
+    
+    // Check for regional variants
+    expect(codes).toContain('en-US');
+    expect(codes).toContain('en-GB');
+    expect(codes).toContain('fr-CA');
+    expect(codes).toContain('zh-CN');
+    
+    // Check underscore variants are also included
+    expect(codes).toContain('en_US');
+    expect(codes).toContain('fr_CA');
+    
+    // Verify display names are present
+    const enUsCode = result.expansion.contains.find((c: any) => c.code === 'en-US');
+    expect(enUsCode.display).toBe('English (United States)');
+    
+    const frCaCode = result.expansion.contains.find((c: any) => c.code === 'fr-CA');
+    expect(frCaCode.display).toBe('French (Canada)');
   });
 
   it('ucum-common: large explicit include.concept list (no CodeSystem lookup required)', async () => {
