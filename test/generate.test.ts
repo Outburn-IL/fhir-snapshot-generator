@@ -49,6 +49,24 @@ const normalizeSnapshotForTest = (input: any): any => {
           ];
         }
 
+        // 2. Normalize Extension.id type to handle cross-version differences
+        if (basePath === 'Element.id' && (el.path === 'Extension.id' || el.path.endsWith('.extension.id'))) {
+          newEl.type = newEl.type?.map((typeObj: any) => {
+            if (typeObj.extension) {
+              // Remove the structuredefinition-fhir-type extension to normalize R4/R5 differences
+              
+              const filteredExtensions = typeObj.extension.filter((ext: any) => 
+                ext.url !== 'http://hl7.org/fhir/StructureDefinition/structuredefinition-fhir-type'
+              );
+              return {
+                ...typeObj,
+                extension: filteredExtensions.length > 0 ? filteredExtensions : undefined
+              };
+            }
+            return typeObj;
+          });
+        }
+
         // 2a. Add slicing if it doesn't exist and base.path matches
         if (
           !el.slicing &&
