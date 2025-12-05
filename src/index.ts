@@ -81,11 +81,12 @@ export class FhirSnapshotGenerator {
       delete fpeConfig.cacheMode; // remove cacheMode (fsg-only feature)
       delete fpeConfig.fhirVersion; // remove fhirVersion (fsg-only feature)
       let fpe = await FhirPackageExplorer.create(fpeConfig);
-      // check if a base FHIR package is in the fpe context
+      // check if any FHIR core package is in the fpe context
       const packagesInContext = fpe.getContextPackages();
       const fhirCorePackage = resolveFhirVersion(fhirVersion, true) as PackageIdentifier;
-      if (!packagesInContext.find(pkg => pkg.id === fhirCorePackage.id && pkg.version === fhirCorePackage.version)) {
-        logger.warn(`No FHIR base package found in the context for version ${fhirVersion}. Adding: ${fhirCorePackage}.`);
+      const hasCorePackage = packagesInContext.some(pkg => pkg.id.match(/^hl7\.fhir\.r[0-9]+\.core$/));
+      if (!hasCorePackage) {
+        logger.warn(`No FHIR core package found in the context. Adding: ${fhirCorePackage.id}@${fhirCorePackage.version}.`);
         fpeConfig.context = [...fpeConfig.context, fhirCorePackage];
         // replace fpe instance with a new one that includes the base package
         fpe = await FhirPackageExplorer.create(fpeConfig);
