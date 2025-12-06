@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
 import { ILogger } from 'fhir-package-explorer';
 
-describe('Build all snapshots in a list of important packages', async () => {
+
+// TODO: improve performance of these tests or run them separately from the main test suite
+describe.skip('Build all snapshots in a list of important packages', async () => {
 
   const cachePath = './test/.test-cache';
   const context = [

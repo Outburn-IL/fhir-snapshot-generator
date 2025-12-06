@@ -11,11 +11,13 @@ const runTest = async () => {
   // const fsg = await FhirSnapshotGenerator.create({ cachePath, context: [
   const fsg = await FhirSnapshotGenerator.create(
     {
-      cachePath, context: ['il.core.fhir.r4#0.19.1'],
+      cachePath, 
+      context: [],
+      fhirVersion: 'R5',
       cacheMode: 'none'
     }
   );
-  const expansion = await fsg.expandValueSet('ILCoreJurisdiction');
+  const expansion = await fsg.expandValueSet('http://terminology.hl7.org/ValueSet/encounter-class');
   // const original = await fsg.getFpe().resolve({ url: snapshot.url, resourceType: 'StructureDefinition' });
   // fs.writeJSONSync(path.join(fsg.getCachePath(), profileId+'-applied-snapshot.json'), snapshot, { spaces: 2 });
   // fs.writeJSONSync(path.join(fsg.getCachePath(), profileId+'-compare-snapshot.json'), original, { spaces: 2 });

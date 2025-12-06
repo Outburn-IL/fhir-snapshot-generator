@@ -148,3 +148,38 @@ describe('ValueSet expansion (integration)', () => {
     expect(codes.length).toBe(2);
   });
 });
+
+describe('ValueSet expansion - R5 (integration)', () => {
+  const cachePath = './test/.test-cache';
+  let fsgR5: FhirSnapshotGenerator;
+
+  beforeAll(async () => {
+    fsgR5 = await FhirSnapshotGenerator.create({ 
+      cachePath, 
+      context: [], 
+      fhirVersion: 'R5',
+      cacheMode: 'none' 
+    });
+  });
+
+  it('encounter-class: R5 encounter class value set expansion', async () => {
+    const vs = await fsgR5.expandValueSet('http://terminology.hl7.org/ValueSet/encounter-class');
+    
+    expect(vs).toBeDefined();
+    expect(vs.expansion).toBeDefined();
+    expect(vs.expansion.contains).toBeTruthy();
+    
+    const flat = flattenContains(vs.expansion.contains);
+    expect(flat.length).toBeGreaterThan(0);
+    
+    // Check for common encounter class codes that should be present
+    const codes = flat.map(c => c.code);
+    expect(codes).toEqual(expect.arrayContaining(['AMB', 'EMER', 'IMP', 'HH', 'OBSENC', 'VR']));
+    
+    // Verify system is correct
+    const v3ActCode = flat.filter(c => c.system === 'http://terminology.hl7.org/CodeSystem/v3-ActCode');
+    expect(v3ActCode.length).toBeGreaterThan(0);
+    
+    console.log('R5 encounter-class expansion contains', flat.length, 'codes');
+  });
+});
