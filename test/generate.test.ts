@@ -54,7 +54,7 @@ const normalizeSnapshotForTest = (input: any): any => {
           newEl.type = newEl.type?.map((typeObj: any) => {
             if (typeObj.extension) {
               // Remove the structuredefinition-fhir-type extension to normalize R4/R5 differences
-              
+
               const filteredExtensions = typeObj.extension.filter((ext: any) => 
                 ext.url !== 'http://hl7.org/fhir/StructureDefinition/structuredefinition-fhir-type'
               );
@@ -88,6 +88,21 @@ const normalizeSnapshotForTest = (input: any): any => {
         if (el.slicing && el.slicing.ordered === false) {
           newEl.slicing = { ...el.slicing };
           delete newEl.slicing.ordered;
+        }
+
+        // 3. Normalize language extension binding to handle SUSHI bug https://github.com/FHIR/sushi/issues/1602
+        if (el.binding && el.path && el.path.endsWith('.extension.value[x]') && 
+            el.binding.extension?.some((ext: any) => 
+              ext.url === 'http://hl7.org/fhir/StructureDefinition/elementdefinition-bindingName' && 
+              ext.valueString === 'Language'
+            )) {
+          newEl.binding = {
+            ...el.binding,
+            description: 'A human language.',
+            extension: el.binding.extension?.filter((ext: any) => 
+              ext.url !== 'http://hl7.org/fhir/tools/StructureDefinition/binding-definition'
+            )
+          };
         }
 
         return newEl;
@@ -167,9 +182,9 @@ describe('Apply differential to parent snapshot', async () => {
     'PractitionerQualificationSlices',
     'PatientIdentifierDeepDiff',
     'language',
-    'CodeableConceptSliceInherit',
+    'CodeableConceptSliceInherit', // unskipped: SUSHI bug handled in normalizeSnapshotForTest
     'il-core-patient',
-    'il-core-practitioner',
+    'il-core-practitioner', // unskipped: SUSHI bug handled in normalizeSnapshotForTest
     'Observation',
     'il-core-observation',
     'il-core-vital-signs',
