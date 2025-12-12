@@ -5,12 +5,11 @@
  */
 
 import { ExplorerConfig } from 'fhir-package-explorer';
+import { Logger, FhirPackageIdentifier, FhirVersion, FhirRelease } from '@outburn/types';
 
-export interface ILogger {
-  info: (msg: any) => void
-  warn: (msg: any) => void
-  error: (msg: any) => void
-};
+export type ILogger = Logger;
+export type PackageIdentifier = FhirPackageIdentifier;
+export type { FhirVersion, FhirRelease };
 
 export type Prethrower = (msg: Error | any) => Error;
 
@@ -90,8 +89,6 @@ export interface FhirTreeNode {
  */
 export type SnapshotCacheMode = 'lazy' | 'ensure' | 'rebuild' | 'none';
 
-export type BaseFhirVersion = '3.0.2' | '4.0.1' | '4.3.0' | '5.0.0' | '3.0' | '4.0' | '4.3' | '5.0' | 'R3' | 'STU3' | 'R4' | 'R4B' | 'R5';
-
 export type SnapshotGeneratorConfig = Omit<ExplorerConfig, 'skipExamples'> & {
   /**
    * Determines how snapshot caching is handled.
@@ -103,7 +100,7 @@ export type SnapshotGeneratorConfig = Omit<ExplorerConfig, 'skipExamples'> & {
    * This is used to determine the FHIR core package to use when fetching base FHIR types.
    * Defaults to 4.0.1 if not specified.
    */
-  fhirVersion?: BaseFhirVersion;
+  fhirVersion?: FhirVersion;
 };
 
 export type SnapshotFetcher = (url: string) => Promise<ElementDefinition[]>;

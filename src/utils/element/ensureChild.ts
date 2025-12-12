@@ -3,7 +3,6 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ILogger } from 'fhir-package-explorer';
 import {
   rewriteNodePaths,
   toTree,
@@ -17,7 +16,7 @@ import {
   initCap
 } from '..';
 
-import { ElementDefinition } from '../../../types';
+import { ElementDefinition, ILogger } from '../../../types';
 
 /**
  * Takes a parent node and a child id, and ensures that the child exists in the working snapshot array.

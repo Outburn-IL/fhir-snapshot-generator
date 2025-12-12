@@ -25,13 +25,13 @@ import fs from 'fs-extra';
 
 import {
   FhirPackageExplorer,
-  PackageIdentifier,
   FileIndexEntryWithPkg
 } from 'fhir-package-explorer';
 
 import {
   ILogger,
-  BaseFhirVersion,
+  PackageIdentifier,
+  FhirVersion,
   ElementDefinition,
   SnapshotCacheMode,
   SnapshotFetcher,
@@ -45,11 +45,11 @@ export class FhirSnapshotGenerator {
   private prethrow: Prethrower;
   private cachePath: string;
   private cacheMode: SnapshotCacheMode;
-  private fhirVersion: BaseFhirVersion;
+  private fhirVersion: FhirVersion;
   private fhirCorePackage: PackageIdentifier;
   private resolvedBasePackages: Map<string, string> = new Map<string, string>(); // cache for resolved base packages
 
-  private constructor(fpe: FhirPackageExplorer, cacheMode: SnapshotCacheMode, fhirVersion: BaseFhirVersion, logger?: ILogger) {
+  private constructor(fpe: FhirPackageExplorer, cacheMode: SnapshotCacheMode, fhirVersion: FhirVersion, logger?: ILogger) {
     if (logger) {
       this.logger = logger;
       this.prethrow = customPrethrower(this.logger);
@@ -75,7 +75,7 @@ export class FhirSnapshotGenerator {
     
     try {
       const cacheMode = config.cacheMode || 'lazy'; // default cache mode
-      const fhirVersion = resolveFhirVersion(config.fhirVersion || '4.0.1') as BaseFhirVersion; // default FHIR version
+      const fhirVersion = resolveFhirVersion(config.fhirVersion || '4.0.1') as FhirVersion; // default FHIR version
       const fpeConfig = { ...config, skipExamples: true }; // force skipExamples=true
 
       delete fpeConfig.cacheMode; // remove cacheMode (fsg-only feature)
@@ -121,7 +121,7 @@ export class FhirSnapshotGenerator {
         for (const sd of allSds) {
           const { filename, __packageId: packageId, __packageVersion: packageVersion, url } = sd;
           try {
-            await fsg.ensureSnapshotCached(filename, packageId, packageVersion);
+            await fsg.ensureSnapshotCached(filename, packageId, packageVersion!);
           } catch (e) {
             errors.push(`Failed to ${cacheMode} snapshot for '${url}' in package '${packageId}@${packageVersion}': ${
               e instanceof Error ? e.message : String(e)
@@ -172,7 +172,7 @@ export class FhirSnapshotGenerator {
     return this.cacheMode;
   };
 
-  public getFhirVersion(): BaseFhirVersion {
+  public getFhirVersion(): FhirVersion {
     return this.fhirVersion;
   };
 
@@ -188,22 +188,22 @@ export class FhirSnapshotGenerator {
    * @returns The core FHIR package identifier (e.g., { id: 'hl7.fhir.r4.core', version: '4.0.1' }).
    */
   private async getCorePackage(sourcePackage: PackageIdentifier): Promise<PackageIdentifier> {
-    let baseFhirPackage: string | undefined = this.resolvedBasePackages.get(`${sourcePackage.id}@${sourcePackage.version}`);
+    let baseFhirPackage: string | undefined = this.resolvedBasePackages.get(`${sourcePackage.id}@${sourcePackage.version!}`);
     if (!baseFhirPackage) { // try to resolve by dependency context
       try {
-        baseFhirPackage = await resolveBasePackage(sourcePackage.id, sourcePackage.version, this.fpe, this.logger);
+        baseFhirPackage = await resolveBasePackage(sourcePackage.id, sourcePackage.version!, this.fpe, this.logger);
       } catch (e) {
-        this.logger.warn(`Failed to resolve base FHIR package for '${sourcePackage.id}@${sourcePackage.version}': ${e instanceof Error ? e.message : String(e)}`);
+        this.logger.warn(`Failed to resolve base FHIR package for '${sourcePackage.id}@${sourcePackage.version!}': ${e instanceof Error ? e.message : String(e)}`);
       }      
     }
     if (!baseFhirPackage) { // fallback to the default FHIR package
-      this.logger.warn(`Defaulting to core package ${this.fhirCorePackage.id}@${this.fhirCorePackage.version} for resolving FHIR types within '${sourcePackage.id}@${sourcePackage.version}'.`);
-      baseFhirPackage = `${this.fhirCorePackage.id}@${this.fhirCorePackage.version}`;
+      this.logger.warn(`Defaulting to core package ${this.fhirCorePackage.id}@${this.fhirCorePackage.version!} for resolving FHIR types within '${sourcePackage.id}@${sourcePackage.version!}'.`);
+      baseFhirPackage = `${this.fhirCorePackage.id}@${this.fhirCorePackage.version!}`;
     }
     if (!baseFhirPackage) {
-      throw new Error(`No base FHIR package found for '${sourcePackage.id}@${sourcePackage.version}'.`);
+      throw new Error(`No base FHIR package found for '${sourcePackage.id}@${sourcePackage.version!}'.`);
     }
-    this.resolvedBasePackages.set(`${sourcePackage.id}@${sourcePackage.version}`, baseFhirPackage);
+    this.resolvedBasePackages.set(`${sourcePackage.id}@${sourcePackage.version!}`, baseFhirPackage);
     const [id, version] = baseFhirPackage.split('@');
     return { id, version };
   }
@@ -344,23 +344,23 @@ export class FhirSnapshotGenerator {
     const { derivation, filename, __packageId: packageId, __packageVersion: packageVersion } = metadata;
     if (!derivation || derivation === 'specialization') {
       // It's a base type, return the snapshot from the original StructureDefinition
-      const sd = await this.getStructureDefinitionByFileName(filename, packageId, packageVersion);
+      const sd = await this.getStructureDefinitionByFileName(filename, packageId, packageVersion!);
       const elements = sd?.snapshot?.element as ElementDefinition[];
       if (!elements || elements.length === 0) {
         throw new Error(`StructureDefinition '${metadata.url}' does not have a snapshot`);
       }
-      return { __corePackage: { id: packageId, version: packageVersion }, ...sd };
+      return { __corePackage: { id: packageId, version: packageVersion! }, ...sd };
     }
     // It's a profile, return a snapshot from cache or generate a new one
     const cached = this.cacheMode !== 'none' ? await this.getSnapshotFromCache(
       filename,
       packageId,
-      packageVersion
+      packageVersion!
     ) : undefined;
     if (cached) return cached;
-    const generated = await this.generate(filename, packageId, packageVersion);
+    const generated = await this.generate(filename, packageId, packageVersion!);
     if (this.cacheMode !== 'none') {
-      await this.saveSnapshotToCache(filename, packageId, packageVersion, generated);
+      await this.saveSnapshotToCache(filename, packageId, packageVersion!, generated);
     }
     return generated;
   }
@@ -555,7 +555,7 @@ export class FhirSnapshotGenerator {
     const { filename, __packageId: packageId, __packageVersion: packageVersion } = metadata;
 
     // Check cache
-    const cached = this.cacheMode !== 'none' ? await this.getExpansionFromCache(filename, packageId, packageVersion) : undefined;
+    const cached = this.cacheMode !== 'none' ? await this.getExpansionFromCache(filename, packageId, packageVersion!) : undefined;
     if (cached) {
       if (cached?.expansion?.__failure === true) {
         // Prior attempt already failed; short-circuit without recomputation
@@ -565,7 +565,7 @@ export class FhirSnapshotGenerator {
     }
 
     // Load original VS
-    const vs = await this.getValueSetByFileName(filename, packageId, packageVersion);
+    const vs = await this.getValueSetByFileName(filename, packageId, packageVersion!);
     if (!vs || vs.resourceType !== 'ValueSet') throw new Error(`File '${filename}' not found as a ValueSet in package '${packageId}@${packageVersion}'.`);
 
     try {
@@ -576,13 +576,13 @@ export class FhirSnapshotGenerator {
       // Build include union map
       let includeMap = new Map<string, Map<string, string | undefined>>();
       for (const inc of includes) {
-        const incMap = await this.expandInclude(inc, { id: packageId, version: packageVersion }, visited);
+        const incMap = await this.expandInclude(inc, { id: packageId, version: packageVersion! }, visited);
         this.mergeSystemMaps(includeMap, incMap);
       }
       // Build exclude union map
       let excludeMap = new Map<string, Map<string, string | undefined>>();
       for (const exc of excludes) {
-        const excMap = await this.expandInclude(exc, { id: packageId, version: packageVersion }, visited);
+        const excMap = await this.expandInclude(exc, { id: packageId, version: packageVersion! }, visited);
         this.mergeSystemMaps(excludeMap, excMap);
       }
       // Subtract excludes
@@ -592,7 +592,7 @@ export class FhirSnapshotGenerator {
       const expanded = { ...vs, expansion: { timestamp: new Date().toISOString(), total, contains } };
 
       if (this.cacheMode !== 'none') {
-        await this.saveExpansionToCache(filename, packageId, packageVersion, expanded);
+        await this.saveExpansionToCache(filename, packageId, packageVersion!, expanded);
       }
       return expanded;
     } catch (e) {
@@ -600,14 +600,14 @@ export class FhirSnapshotGenerator {
       if (vs?.expansion?.contains && Array.isArray(vs.expansion.contains)) {
         // Cache the original as well to avoid repeated regeneration attempts
         if (this.cacheMode !== 'none') {
-          await this.saveExpansionToCache(filename, packageId, packageVersion, vs);
+          await this.saveExpansionToCache(filename, packageId, packageVersion!, vs);
         }
         return vs;
       }
       // No usable fallback expansion. Cache a stub marking failure to avoid repeated expensive retries.
       if (this.cacheMode !== 'none') {
         const failureStub = { ...vs, expansion: { timestamp: new Date().toISOString(), __failure: true } };
-        try { await this.saveExpansionToCache(filename, packageId, packageVersion, failureStub); } catch { /* ignore */ }
+        try { await this.saveExpansionToCache(filename, packageId, packageVersion!, failureStub); } catch { /* ignore */ }
       }
       throw e;
     }
@@ -766,7 +766,7 @@ export class FhirSnapshotGenerator {
 export type {
   ElementDefinition,
   ILogger,
-  BaseFhirVersion,
+  FhirVersion,
   SnapshotCacheMode,
   SnapshotGeneratorConfig,
   SnapshotFetcher,
@@ -781,7 +781,7 @@ export type {
 } from '../types';
 
 // Re-export useful types from dependencies
-export type { PackageIdentifier } from 'fhir-package-explorer';
+export type { FhirPackageIdentifier as PackageIdentifier } from '@outburn/types';
 
 // Export implicit code systems for external usage
 export { ImplicitCodeSystemRegistry } from './utils';

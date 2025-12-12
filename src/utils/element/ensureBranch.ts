@@ -3,8 +3,7 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ILogger } from 'fhir-package-explorer';
-import { ElementDefinition } from '../../../types';
+import { ElementDefinition, ILogger } from '../../../types';
 import { DefinitionFetcher, ensureChild } from '..';
 
 /**

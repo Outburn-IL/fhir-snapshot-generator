@@ -3,8 +3,8 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { FhirPackageExplorer, PackageIdentifier } from 'fhir-package-explorer';
-import { ElementDefinition, SnapshotFetcher } from '../../../types';
+import { FhirPackageExplorer } from 'fhir-package-explorer';
+import { ElementDefinition, SnapshotFetcher, PackageIdentifier } from '../../../types';
 import { migrateElements } from '../element';
 
 /**

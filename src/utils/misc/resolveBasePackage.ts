@@ -3,9 +3,9 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { FhirPackageExplorer, ILogger, PackageIdentifier } from 'fhir-package-explorer';
+import { FhirPackageExplorer } from 'fhir-package-explorer';
+import { ILogger, PackageIdentifier, FhirVersion } from '../../../types';
 import { fhirCorePackages, resolveFhirVersion } from './resolveFhirVersion';
-import { BaseFhirVersion } from '../..';
 
 const findCorePackage = async (pkg: PackageIdentifier, fpe: FhirPackageExplorer): Promise<PackageIdentifier[]> => {
   // if the requested package is a base package itself, return it as is
@@ -40,7 +40,7 @@ export const resolveBasePackage = async (packageId: string, packageVersion: stri
       // translate each fhirVersion to a package identifier and push into corePackages
       pkgManifest.fhirVersions.map((fhirVersion: string) => {
         logger.info(`Resolving core package for FHIR version ${fhirVersion}`);
-        const corePackageId = resolveFhirVersion(fhirVersion as BaseFhirVersion, true) as PackageIdentifier | undefined;
+        const corePackageId = resolveFhirVersion(fhirVersion as FhirVersion, true) as PackageIdentifier | undefined;
         if (corePackageId) {
           const { id, version } = corePackageId;
           corePackages.push(
