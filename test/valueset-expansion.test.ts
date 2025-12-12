@@ -160,7 +160,7 @@ describe('ValueSet expansion - R5 (integration)', () => {
       fhirVersion: 'R5',
       cacheMode: 'none' 
     });
-  });
+  }, 60000);
 
   it('encounter-class: R5 encounter class value set expansion', async () => {
     const vs = await fsgR5.expandValueSet('http://terminology.hl7.org/ValueSet/encounter-class');

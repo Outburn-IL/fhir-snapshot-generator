@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
-import { ILogger } from 'fhir-package-explorer';
+import { ILogger } from '../types';
 
 
 // TODO: improve performance of these tests or run them separately from the main test suite
