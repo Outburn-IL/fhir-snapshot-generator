@@ -3,7 +3,7 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ElementDefinition, ILogger } from '../../../types';
+import { ElementDefinition, Logger } from '@outburn/types';
 import { ensureBranch, mergeElement, elementExists, DefinitionFetcher } from '..';
 
 /**
@@ -60,7 +60,7 @@ const rewrite = (original: string, kind: 'id' | 'path', pathRewriteMap: Map<stri
  * @param diffElements the diff elements to apply
  * @returns the updated element array after applying the diff elements
  */
-export const applyDiffs = async (elements: ElementDefinition[], diffs: ElementDefinition[], fetcher: DefinitionFetcher, logger: ILogger): Promise<ElementDefinition[]> => {
+export const applyDiffs = async (elements: ElementDefinition[], diffs: ElementDefinition[], fetcher: DefinitionFetcher, logger: Logger): Promise<ElementDefinition[]> => {
   // working snapshot array. will accumulate all changes and be returned at the end.
   let updatedElements = [...elements];
   

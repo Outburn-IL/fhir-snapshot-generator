@@ -23,27 +23,30 @@ import {
 } from 'fhir-package-explorer';
 
 import {
-  ILogger,
-  PackageIdentifier,
-  FhirVersion,
-  ElementDefinition,
   SnapshotCacheMode,
   SnapshotFetcher,
   SnapshotGeneratorConfig,
   Prethrower
 } from '../types';
 
+import {
+  Logger,
+  FhirPackageIdentifier,
+  FhirVersion,
+  ElementDefinition
+} from '@outburn/types';
+
 export class FhirSnapshotGenerator {
   private fpe: FhirPackageExplorer;
-  private logger: ILogger;
+  private logger: Logger;
   private prethrow: Prethrower;
   private cachePath: string;
   private cacheMode: SnapshotCacheMode;
   private fhirVersion: FhirVersion;
-  private fhirCorePackage: PackageIdentifier;
+  private fhirCorePackage: FhirPackageIdentifier;
   private resolvedBasePackages: Map<string, string> = new Map<string, string>(); // cache for resolved base packages
 
-  private constructor(fpe: FhirPackageExplorer, cacheMode: SnapshotCacheMode, fhirVersion: FhirVersion, logger?: ILogger) {
+  private constructor(fpe: FhirPackageExplorer, cacheMode: SnapshotCacheMode, fhirVersion: FhirVersion, logger?: Logger) {
     if (logger) {
       this.logger = logger;
       this.prethrow = customPrethrower(this.logger);
@@ -53,7 +56,7 @@ export class FhirSnapshotGenerator {
     }
     this.cacheMode = cacheMode;
     this.fhirVersion = fhirVersion;
-    this.fhirCorePackage = resolveFhirVersion(fhirVersion, true) as PackageIdentifier;
+    this.fhirCorePackage = resolveFhirVersion(fhirVersion, true) as FhirPackageIdentifier;
     this.fpe = fpe;
     this.cachePath = fpe.getCachePath();
   };
@@ -77,7 +80,7 @@ export class FhirSnapshotGenerator {
       let fpe = await FhirPackageExplorer.create(fpeConfig);
       // check if any FHIR core package is in the fpe context
       const packagesInContext = fpe.getContextPackages();
-      const fhirCorePackage = resolveFhirVersion(fhirVersion, true) as PackageIdentifier;
+      const fhirCorePackage = resolveFhirVersion(fhirVersion, true) as FhirPackageIdentifier;
       const hasCorePackage = packagesInContext.some(pkg => pkg.id.match(/^hl7\.fhir\.r[0-9]+\.core$/));
       if (!hasCorePackage) {
         logger.warn(`No FHIR core package found in the context. Adding: ${fhirCorePackage.id}@${fhirCorePackage.version}.`);
@@ -136,7 +139,7 @@ export class FhirSnapshotGenerator {
     }
   };
 
-  public getLogger(): ILogger {
+  public getLogger(): Logger {
     return this.logger;
   }
 
@@ -163,7 +166,7 @@ export class FhirSnapshotGenerator {
    * @param sourcePackage The source package identifier (e.g., { id: 'hl7.fhir.us.core', version: '6.1.0' }).
    * @returns The core FHIR package identifier (e.g., { id: 'hl7.fhir.r4.core', version: '4.0.1' }).
    */
-  private async getCorePackage(sourcePackage: PackageIdentifier): Promise<PackageIdentifier> {
+  private async getCorePackage(sourcePackage: FhirPackageIdentifier): Promise<FhirPackageIdentifier> {
     let baseFhirPackage: string | undefined = this.resolvedBasePackages.get(`${sourcePackage.id}@${sourcePackage.version!}`);
     if (!baseFhirPackage) { // try to resolve by dependency context
       try {
@@ -224,7 +227,7 @@ export class FhirSnapshotGenerator {
   /**
    * Fetch StructureDefinition metadata by any identifier (id, url, name) - FSH style.
    */
-  public async getMetadata(identifier: string, packageFilter?: PackageIdentifier): Promise<FileIndexEntryWithPkg> {
+  public async getMetadata(identifier: string, packageFilter?: FhirPackageIdentifier): Promise<FileIndexEntryWithPkg> {
     const errors: any[] = [];
     if (identifier.startsWith('http:') || identifier.startsWith('https:') || identifier.includes(':')) {
       // the identifier is possibly a URL/URN - try and resolve it as such
@@ -361,7 +364,7 @@ export class FhirSnapshotGenerator {
   /**
    * Get snapshot by any FSH style identifier (id, url or name), or by a metadata object.
    */
-  public async getSnapshot(identifier: string | FileIndexEntryWithPkg, packageFilter?: PackageIdentifier): Promise<any> {
+  public async getSnapshot(identifier: string | FileIndexEntryWithPkg, packageFilter?: FhirPackageIdentifier): Promise<any> {
     try {
       let metadata: FileIndexEntryWithPkg | undefined;
       if (typeof identifier === 'string') {
@@ -387,21 +390,10 @@ export class FhirSnapshotGenerator {
 };
 
 export type {
-  ElementDefinition,
-  ILogger,
-  FhirVersion,
   SnapshotCacheMode,
   SnapshotGeneratorConfig,
   SnapshotFetcher,
   Prethrower,
-  FhirExtensionInstance,
-  ElementConstraint,
-  ElementDefinitionType,
-  ElementDefinitionSlicing,
-  SlicingDiscriminator,
-  ElementDefinitionBinding,
   FhirTreeNode
 } from '../types';
 
-// Re-export useful types from dependencies
-export type { FhirPackageIdentifier as PackageIdentifier } from '@outburn/types';

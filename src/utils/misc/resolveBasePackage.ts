@@ -4,10 +4,10 @@
  */
 
 import { FhirPackageExplorer } from 'fhir-package-explorer';
-import { ILogger, PackageIdentifier, FhirVersion } from '../../../types';
+import { Logger, FhirPackageIdentifier, FhirVersion } from '@outburn/types';
 import { fhirCorePackages, resolveFhirVersion } from './resolveFhirVersion';
 
-const findCorePackage = async (pkg: PackageIdentifier, fpe: FhirPackageExplorer): Promise<PackageIdentifier[]> => {
+const findCorePackage = async (pkg: FhirPackageIdentifier, fpe: FhirPackageExplorer): Promise<FhirPackageIdentifier[]> => {
   // if the requested package is a base package itself, return it as is
   if (Object.values(fhirCorePackages).includes(`${pkg.id}@${pkg.version}`)) {
     return [{ id: pkg.id, version: pkg.version }];
@@ -26,7 +26,7 @@ const findCorePackage = async (pkg: PackageIdentifier, fpe: FhirPackageExplorer)
  * @param logger The logger instance. Used to log warnings.
  * @return (string) The resolved base FHIR package (e.g., "hl7.fhir.r4.core@4.0.1").
  */
-export const resolveBasePackage = async (packageId: string, packageVersion: string, fpe: FhirPackageExplorer, logger: ILogger): Promise<string | undefined> => {
+export const resolveBasePackage = async (packageId: string, packageVersion: string, fpe: FhirPackageExplorer, logger: Logger): Promise<string | undefined> => {
   const corePackages = await findCorePackage({ id: packageId, version: packageVersion }, fpe);
   if (corePackages.length === 0) {
     logger.warn(`No base FHIR package dependency found for ${packageId}@${packageVersion}.`);
@@ -40,7 +40,7 @@ export const resolveBasePackage = async (packageId: string, packageVersion: stri
       // translate each fhirVersion to a package identifier and push into corePackages
       pkgManifest.fhirVersions.map((fhirVersion: string) => {
         logger.info(`Resolving core package for FHIR version ${fhirVersion}`);
-        const corePackageId = resolveFhirVersion(fhirVersion as FhirVersion, true) as PackageIdentifier | undefined;
+        const corePackageId = resolveFhirVersion(fhirVersion as FhirVersion, true) as FhirPackageIdentifier | undefined;
         if (corePackageId) {
           const { id, version } = corePackageId;
           corePackages.push(

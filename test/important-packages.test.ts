@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
-import { ILogger } from '../types';
+import { Logger } from '@outburn/types';
 
 
 // TODO: improve performance of these tests or run them separately from the main test suite
@@ -19,7 +19,7 @@ describe.skip('Build all snapshots in a list of important packages', async () =>
   it('should generate all snapshots without unexpected issues', async () => {
     const warnings: any[] = [];
     const errors: any[] = [];
-    const logger: ILogger = {
+    const logger: Logger = {
       info: () => {}, // no-op
       warn: (msg) => {
         if (typeof msg === 'string' && msg === '{}') return; // ignore empty warning messages
