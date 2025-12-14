@@ -73,21 +73,12 @@ export class FhirSnapshotGenerator {
     try {
       const cacheMode = config.cacheMode || 'lazy'; // default cache mode
       const fhirVersion = resolveFhirVersion(config.fhirVersion || '4.0.1') as FhirVersion; // default FHIR version
-      const fpeConfig = { ...config, skipExamples: true }; // force skipExamples=true
+      const fpeConfig = { ...config, skipExamples: true, fhirVersion: config.fhirVersion || '4.0.1' }; // force skipExamples=true and pass fhirVersion for auto-core-package
 
       delete fpeConfig.cacheMode; // remove cacheMode (fsg-only feature)
-      delete fpeConfig.fhirVersion; // remove fhirVersion (fsg-only feature)
-      let fpe = await FhirPackageExplorer.create(fpeConfig);
-      // check if any FHIR core package is in the fpe context
-      const packagesInContext = fpe.getContextPackages();
-      const fhirCorePackage = resolveFhirVersion(fhirVersion, true) as FhirPackageIdentifier;
-      const hasCorePackage = packagesInContext.some(pkg => pkg.id.match(/^hl7\.fhir\.r[0-9]+\.core$/));
-      if (!hasCorePackage) {
-        logger.warn(`No FHIR core package found in the context. Adding: ${fhirCorePackage.id}@${fhirCorePackage.version}.`);
-        fpeConfig.context = [...fpeConfig.context, fhirCorePackage];
-        // replace fpe instance with a new one that includes the base package
-        fpe = await FhirPackageExplorer.create(fpeConfig);
-      };
+      
+      // FhirPackageExplorer now automatically adds core package if needed when fhirVersion is specified
+      const fpe = await FhirPackageExplorer.create(fpeConfig);
 
       // Create a new FhirSnapshotGenerator instance
       const fsg = new FhirSnapshotGenerator(fpe, cacheMode, fhirVersion, config.logger);

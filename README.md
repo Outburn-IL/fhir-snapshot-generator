@@ -39,7 +39,7 @@ const fsg = await FhirSnapshotGenerator.create({
 });
 ```
 
-If a base FHIR package is missing from the package context and dependencies, it will be added automatically according to `fhirVersion`.
+> **Note:** The underlying `fhir-package-explorer` automatically adds a FHIR core package (e.g., `hl7.fhir.r4.core@4.0.1`) to the context if none is found, based on the specified `fhirVersion`.
 
 ### 2. Fetch a StructureDefinition snapshot
 
