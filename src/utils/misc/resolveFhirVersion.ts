@@ -3,7 +3,7 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { FhirVersion, PackageIdentifier, FhirRelease } from '../../../types';
+import { FhirVersion, FhirPackageIdentifier, FhirRelease } from '@outburn/types';
 
 const fhirVersionMap: Record<string, FhirRelease> = {
   '3.0.2': 'STU3',
@@ -34,7 +34,7 @@ export const fhirCorePackages: Record<FhirRelease, string> = {
  * @throws Error if the version is not supported.
  * @returns The resolved FHIR version or base package name.
  */
-export const resolveFhirVersion = (version: FhirVersion, toPackage?: boolean): FhirRelease | PackageIdentifier => {
+export const resolveFhirVersion = (version: FhirVersion, toPackage?: boolean): FhirRelease | FhirPackageIdentifier => {
   const canonicalVersion: FhirRelease = fhirVersionMap[version] || (version as FhirRelease);
   const corePackage = fhirCorePackages[canonicalVersion];
   if (!corePackage) {

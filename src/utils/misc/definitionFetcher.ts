@@ -4,7 +4,8 @@
  */
 
 import { FhirPackageExplorer } from 'fhir-package-explorer';
-import { ElementDefinition, SnapshotFetcher, PackageIdentifier } from '../../../types';
+import { SnapshotFetcher } from '../../../types';
+import { ElementDefinition, FhirPackageIdentifier } from '@outburn/types';
 import { migrateElements } from '../element';
 
 /**
@@ -13,9 +14,9 @@ import { migrateElements } from '../element';
  */
 export class DefinitionFetcher {
   // Package from which the StructureDefinition is from. Used as context for all mid-process type/profile resolutions
-  private sourcePackage: PackageIdentifier;
+  private sourcePackage: FhirPackageIdentifier;
   // The base FHIR package (e.g., "hl7.fhir.r4.core@4.0.1") used for resolving FHIR base types.
-  private corePackage: PackageIdentifier;
+  private corePackage: FhirPackageIdentifier;
   // An instance of the FhirPackageExplorer class. Used to resolve FHIR types and profiles.
   private fpe: FhirPackageExplorer;
   // A map to cache previously fetched element arrays for base types, profiles and contentReference.
@@ -24,7 +25,7 @@ export class DefinitionFetcher {
   // Depending on the FSG cache mode, it may return a pre-generated cached snapshot or generate a new one.
   private snapshotFetcher: SnapshotFetcher;
   
-  public constructor(sourcePackage: PackageIdentifier, corePackage: PackageIdentifier, fpe: FhirPackageExplorer, snapshotFetcher: SnapshotFetcher) {
+  public constructor(sourcePackage: FhirPackageIdentifier, corePackage: FhirPackageIdentifier, fpe: FhirPackageExplorer, snapshotFetcher: SnapshotFetcher) {
     this.sourcePackage = sourcePackage;
     this.corePackage = corePackage;
     this.snapshotFetcher = snapshotFetcher;

@@ -3,7 +3,8 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { FhirTreeNode, ElementDefinition } from '../../../types';
+import { FhirTreeNode } from '../../../types';
+import { ElementDefinition } from '@outburn/types';
 
 /**
  * Flattens a FhirTreeNode into a flat array of ElementDefinition objects.

@@ -4,7 +4,8 @@
  */
 
 import { toNodeType, isNodeSliceable } from '..';
-import { ElementDefinition, FhirTreeNode } from '../../../types';
+import { FhirTreeNode } from '../../../types';
+import { ElementDefinition } from '@outburn/types';
 
 /**
  * Builds a tree from an array of ElementDefinition objects.

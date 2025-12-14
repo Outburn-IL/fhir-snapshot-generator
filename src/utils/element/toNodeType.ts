@@ -3,7 +3,7 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ElementDefinition } from '../../../types';
+import { ElementDefinition } from '@outburn/types';
 
 /**
  * Gets the node type based on the element definition properties.
@@ -18,7 +18,8 @@ export const toNodeType = (element: ElementDefinition): 'array' | 'poly' | 'elem
     if (element.slicing) return 'resliced';
     return 'slice';
   }
-  if (element.base?.max && (element.base.max === '*' || parseInt(element.base.max) > 1)) {
+  const base = element.base as { max?: string } | undefined;
+  if (base?.max && (base.max === '*' || parseInt(base.max) > 1)) {
     return 'array';
   }
   return 'element';

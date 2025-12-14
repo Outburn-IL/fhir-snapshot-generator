@@ -3,7 +3,7 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ElementDefinition } from '../../../types';
+import { ElementDefinition } from '@outburn/types';
 
 /**
  * Check if the current working snapshot contains the target element id.

@@ -3,7 +3,7 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ElementDefinition } from '../../../types';
+import { ElementDefinition } from '@outburn/types';
 
 /**
  * Merge an existing snapshot element with a diff element.
@@ -24,14 +24,15 @@ export const mergeElement = (base: ElementDefinition, diff: ElementDefinition): 
   // apply the diff attributes, key by key
   for (const key of Object.keys(diff) as string[]) {
     if (['constraint', 'condition', 'mapping'].includes(key)) {
-      const baseArr = base[key] || [], diffArr = diff[key] || [];
+      const baseArr = (base[key] as any[] | undefined) || [];
+      const diffArr = (diff[key] as any[] | undefined) || [];
     
       if (key === 'constraint') {
         mergedElement.constraint = [...baseArr, ...diffArr];
     
       } else if (key === 'condition') {
         const ids = Array.from(new Set([...baseArr, ...diffArr]));
-        mergedElement.condition = ids;
+        mergedElement.condition = ids as string[];
     
       } else {
         const seen = new Set<string>();

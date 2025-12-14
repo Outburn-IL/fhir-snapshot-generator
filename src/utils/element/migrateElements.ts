@@ -3,7 +3,7 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ElementConstraint, ElementDefinition, FhirExtensionInstance } from '../../../types';
+import { ElementConstraint, ElementDefinition, FhirExtensionInstance } from '@outburn/types';
 
 /**
  * When bringing an ElementDefinition from one of the base FHIR packages and using it as the base for a diff application,
