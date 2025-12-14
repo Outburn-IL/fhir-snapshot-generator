@@ -5,13 +5,20 @@
  */
 
 import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
+import { FhirPackageExplorer } from 'fhir-package-explorer';
 const cachePath = './test/.test-cache';
 
 const runTest = async () => {
+  const fpe = await FhirPackageExplorer.create({
+    cachePath,
+    context: ['hl7.fhir.us.core@6.1.0'],
+    skipExamples: true,
+    fhirVersion: '4.0.1'
+  });
+
   const fsg = await FhirSnapshotGenerator.create(
     {
-      cachePath, 
-      context: ['hl7.fhir.us.core@6.1.0'],
+      fpe,
       fhirVersion: '4.0.1',
       cacheMode: 'lazy'
     }

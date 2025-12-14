@@ -7,6 +7,7 @@ import {
 import fs from 'fs-extra';
 import path from 'path';
 import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
+import { FhirPackageExplorer } from 'fhir-package-explorer';
 
 const normalizeSnapshotForTest = (input: any): any => {
   return {
@@ -200,9 +201,15 @@ describe('Apply differential to parent snapshot', async () => {
     // 'bp' // skipped because original snapshot has both value[x] and value[x]:valueQuantity although it's a monopoly
   ];
 
-  const fsg = await FhirSnapshotGenerator.create({
+  const fpe = await FhirPackageExplorer.create({
     cachePath,
     context,
+    skipExamples: true
+  });
+
+  const fsg = await FhirSnapshotGenerator.create({
+    fpe,
+    fhirVersion: '4.0.1',
     cacheMode: 'none'
   });
 

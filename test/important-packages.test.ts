@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
+import { FhirPackageExplorer } from 'fhir-package-explorer';
 import { Logger } from '@outburn/types';
 
 
@@ -64,9 +65,15 @@ describe.skip('Build all snapshots in a list of important packages', async () =>
       }
     };
   
-    await FhirSnapshotGenerator.create({
+    const fpe = await FhirPackageExplorer.create({
       cachePath,
       context,
+      skipExamples: true
+    });
+
+    await FhirSnapshotGenerator.create({
+      fpe,
+      fhirVersion: '4.0.1',
       // use rebuild (and not 'none') to get a realistic duration assessment of a large pre-generation process.
       // using 'none' leads to repeated re-generation of the same snapshots due to other profiles referencing them
       cacheMode: 'rebuild',

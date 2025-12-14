@@ -46,14 +46,9 @@ export class FhirSnapshotGenerator {
   private fhirCorePackage: FhirPackageIdentifier;
   private resolvedBasePackages: Map<string, string> = new Map<string, string>(); // cache for resolved base packages
 
-  private constructor(fpe: FhirPackageExplorer, cacheMode: SnapshotCacheMode, fhirVersion: FhirVersion, logger?: Logger) {
-    if (logger) {
-      this.logger = logger;
-      this.prethrow = customPrethrower(this.logger);
-    } else {
-      this.logger = defaultLogger;
-      this.prethrow = defaultPrethrow;
-    }
+  private constructor(fpe: FhirPackageExplorer, cacheMode: SnapshotCacheMode, fhirVersion: FhirVersion, logger: Logger) {
+    this.logger = logger;
+    this.prethrow = customPrethrower(this.logger);
     this.cacheMode = cacheMode;
     this.fhirVersion = fhirVersion;
     this.fhirCorePackage = resolveFhirVersion(fhirVersion, true) as FhirPackageIdentifier;
@@ -63,7 +58,7 @@ export class FhirSnapshotGenerator {
 
   /**
    * Creates a new instance of the FhirSnapshotGenerator class.
-   * @param config - the configuration object for the FhirPackageExplorer
+   * @param config - the configuration object including the FhirPackageExplorer instance
    * @returns - a promise that resolves to a new instance of the FhirSnapshotGenerator class
    */
   static async create(config: SnapshotGeneratorConfig): Promise<FhirSnapshotGenerator> {
@@ -71,17 +66,16 @@ export class FhirSnapshotGenerator {
     const prethrow = config.logger ? customPrethrower(logger) : defaultPrethrow;
     
     try {
-      const cacheMode = config.cacheMode || 'lazy'; // default cache mode
-      const fhirVersion = resolveFhirVersion(config.fhirVersion || '4.0.1') as FhirVersion; // default FHIR version
-      const fpeConfig = { ...config, skipExamples: true, fhirVersion: config.fhirVersion || '4.0.1' }; // force skipExamples=true and pass fhirVersion for auto-core-package
+      const { fpe } = config;
+      if (!fpe) {
+        throw new Error('FhirPackageExplorer instance is required in config.fpe');
+      }
 
-      delete fpeConfig.cacheMode; // remove cacheMode (fsg-only feature)
-      
-      // FhirPackageExplorer now automatically adds core package if needed when fhirVersion is specified
-      const fpe = await FhirPackageExplorer.create(fpeConfig);
+      const cacheMode = config.cacheMode || 'lazy'; // default cache mode
+      const fhirVersion = resolveFhirVersion(config.fhirVersion) as FhirVersion;
 
       // Create a new FhirSnapshotGenerator instance
-      const fsg = new FhirSnapshotGenerator(fpe, cacheMode, fhirVersion, config.logger);
+      const fsg = new FhirSnapshotGenerator(fpe, cacheMode, fhirVersion, logger);
 
       let precache: boolean = false;
 

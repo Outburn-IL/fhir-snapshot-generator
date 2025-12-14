@@ -26,18 +26,30 @@ npm install fhir-snapshot-generator
 
 ## Usage
 
-### 1. Create an instance
+### 1. Create a FhirPackageExplorer instance
 
 ```ts
+import { FhirPackageExplorer } from 'fhir-package-explorer';
 import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
 
-const fsg = await FhirSnapshotGenerator.create({
+// First, create a FhirPackageExplorer instance
+const fpe = await FhirPackageExplorer.create({
   context: ['hl7.fhir.us.core@6.1.0'],
   cachePath: './.fhir-cache',
   fhirVersion: '4.0.1',
-  cacheMode: 'lazy' // 'lazy' | 'ensure' | 'rebuild' | 'none'
+  skipExamples: true // recommended for better performance
+});
+
+// Then, pass it to the FhirSnapshotGenerator
+const fsg = await FhirSnapshotGenerator.create({
+  fpe, // required: FhirPackageExplorer instance
+  fhirVersion: '4.0.1', // optional: will be inferred from FPE if not provided
+  cacheMode: 'lazy', // optional: 'lazy' | 'ensure' | 'rebuild' | 'none'
+  logger: customLogger // optional: provide your own logger
 });
 ```
+
+> **Note:** The `fpe` instance is required and must be created first. This allows sharing a single FPE instance across multiple modules (e.g., when using both `fhir-snapshot-generator` and `fhir-terminology-runtime`).
 
 > **Note:** The underlying `fhir-package-explorer` automatically adds a FHIR core package (e.g., `hl7.fhir.r4.core@4.0.1`) to the context if none is found, based on the specified `fhirVersion`.
 
@@ -89,9 +101,39 @@ See: [Package Cache Directory section](https://github.com/Outburn-IL/fhir-packag
 Specify the default FHIR version with the `fhirVersion` option. This determines which base definitions are used when none are explicitly imported through dependencies.
 If not specified, defaults to `4.0.1` (FHIR R4).
 
+## Sharing FPE with Other Modules
+
+As of version 2.0, FSG accepts a `FhirPackageExplorer` instance via dependency injection rather than creating its own. This enables efficient resource sharing across multiple FHIR modules.
+
+For example, if you're using both `fhir-snapshot-generator` and `fhir-terminology-runtime`:
+
+```ts
+import { FhirPackageExplorer } from 'fhir-package-explorer';
+import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
+import { FhirTerminologyRuntime } from 'fhir-terminology-runtime';
+
+// Create a single FPE instance
+const fpe = await FhirPackageExplorer.create({
+  context: ['hl7.fhir.us.core@6.1.0'],
+  cachePath: './.fhir-cache',
+  fhirVersion: '4.0.1',
+  skipExamples: true
+});
+
+// Share it across both modules
+const fsg = await FhirSnapshotGenerator.create({ fpe, fhirVersion: '4.0.1', cacheMode: 'lazy' });
+const ftr = await FhirTerminologyRuntime.create({ fpe });
+```
+
+This approach:
+- Avoids duplicate package loading and parsing
+- Reduces memory footprint
+- Ensures consistent package resolution across modules
+- Simplifies configuration (set context and cache path once)
+
 ## Terminology Support
 
-ValueSet expansion and CodeSystem resolution functionality has been moved to the separate [`fhir-terminology-runtime`](https://github.com/Outburn-IL/fhir-terminology-runtime) module. If you need terminology services, please use that package.
+ValueSet expansion and CodeSystem resolution functionality has been moved to the separate [`fhir-terminology-runtime`](https://github.com/Outburn-IL/fhir-terminology-runtime) module. If you need terminology services, please use that package (and share the same FPE instance as shown above).
 
 ## License
 

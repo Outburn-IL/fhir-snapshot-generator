@@ -4,10 +4,11 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ExplorerConfig } from 'fhir-package-explorer';
+import { FhirPackageExplorer } from 'fhir-package-explorer';
 import { 
   FhirVersion, 
-  ElementDefinition
+  ElementDefinition,
+  Logger
 } from '@outburn/types';
 
 
@@ -34,18 +35,26 @@ export interface FhirTreeNode {
  */
 export type SnapshotCacheMode = 'lazy' | 'ensure' | 'rebuild' | 'none';
 
-export type SnapshotGeneratorConfig = Omit<ExplorerConfig, 'skipExamples'> & {
+export type SnapshotGeneratorConfig = {
+  /**
+   * The FhirPackageExplorer instance to use for resolving FHIR resources.
+   * This allows sharing a single FPE instance across multiple modules (e.g., FSG and FTR).
+   */
+  fpe: FhirPackageExplorer;
+  /**
+   * The FHIR version to use for the snapshot generation.
+   * This is used to determine the FHIR core package to use when fetching base FHIR types.
+   */
+  fhirVersion: FhirVersion;
   /**
    * Determines how snapshot caching is handled.
    * Defaults to `'lazy'` if not specified.
    */
   cacheMode?: SnapshotCacheMode;
   /**
-   * The FHIR version to use for the snapshot generation.
-   * This is used to determine the FHIR core package to use when fetching base FHIR types.
-   * Defaults to 4.0.1 if not specified.
+   * Optional logger instance for custom logging.
    */
-  fhirVersion?: FhirVersion;
+  logger?: Logger;
 };
 
 export type SnapshotFetcher = (url: string) => Promise<ElementDefinition[]>;

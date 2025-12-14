@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'fs-extra';
 import path from 'path';
 import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
+import { FhirPackageExplorer } from 'fhir-package-explorer';
 import { versionedCacheDir } from '../src/utils/misc/getVersionedCacheDir';
 
 describe('Ensure all snapshots in context', async () => {
@@ -25,9 +26,16 @@ describe('Ensure all snapshots in context', async () => {
     fs.writeJSONSync(path.join(snapshotCachePath, dummySnapshot), {
       resourceType: 'dummy'
     });
-    await FhirSnapshotGenerator.create({
+    
+    const fpe = await FhirPackageExplorer.create({
       cachePath,
       context: [context],
+      skipExamples: true
+    });
+
+    await FhirSnapshotGenerator.create({
+      fpe,
+      fhirVersion: '4.0.1',
       cacheMode: 'ensure',
     });
   }, 240000); // 4min timeout for setup
