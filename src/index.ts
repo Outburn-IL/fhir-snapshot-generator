@@ -18,9 +18,12 @@ import path from 'path';
 import fs from 'fs-extra';
 
 import {
-  FhirPackageExplorer,
-  FileIndexEntryWithPkg
+  FhirPackageExplorer
 } from 'fhir-package-explorer';
+
+import {
+  FileIndexEntryWithPkg
+} from '@outburn/types';
 
 import {
   SnapshotCacheMode,
