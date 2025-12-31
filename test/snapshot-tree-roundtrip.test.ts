@@ -40,7 +40,8 @@ describe('Snapshot Tree Round-trip', () => {
     fpe = await FhirPackageExplorer.create({
       cachePath,
       context,
-      skipExamples: true
+      skipExamples: true,
+      fhirVersion: '4.0.1' // Enable auto-core-package feature
     });
   }, 240000); // 4min timeout for setup
     

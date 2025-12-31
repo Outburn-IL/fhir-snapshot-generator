@@ -4,7 +4,8 @@
  */
 
 import { isNodeSliceable, toTree, rewriteElementPaths, DefinitionFetcher } from '..';
-import { FhirTreeNode, ElementDefinition, ElementDefinitionType } from '../../../types';
+import { FhirTreeNode } from '../../../types';
+import { ElementDefinition, ElementDefinitionType } from '@outburn/types';
 
 /**
  * Expands a node by ensuring its children are populated.

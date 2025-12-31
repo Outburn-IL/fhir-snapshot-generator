@@ -3,7 +3,6 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ILogger } from 'fhir-package-explorer';
 import {
   rewriteNodePaths,
   toTree,
@@ -17,7 +16,7 @@ import {
   initCap
 } from '..';
 
-import { ElementDefinition } from '../../../types';
+import { ElementDefinition } from '@outburn/types';
 
 /**
  * Takes a parent node and a child id, and ensures that the child exists in the working snapshot array.
@@ -34,7 +33,6 @@ export const ensureChild = async (
   parentId: string,
   childId: string,
   fetcher: DefinitionFetcher,
-  logger: ILogger,
   pathRewriteMap: Map<string, { id: string, path: string }>
 ): Promise<ElementDefinition[]> => {
   const parentElementBlock = elements.filter(element => element.id === parentId || element.id.startsWith(`${parentId}.`));

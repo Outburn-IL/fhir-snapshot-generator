@@ -3,8 +3,7 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ILogger } from 'fhir-package-explorer';
-import { ElementDefinition } from '../../../types';
+import { ElementDefinition, Logger } from '@outburn/types';
 import { DefinitionFetcher, ensureChild } from '..';
 
 /**
@@ -17,7 +16,7 @@ export const ensureBranch = async (
   elements: ElementDefinition[],
   targetElementId: string,
   fetcher: DefinitionFetcher,
-  logger: ILogger,
+  logger: Logger,
   pathRewriteMap: Map<string, { id: string, path: string }>
 ): Promise<ElementDefinition[]> => {
   const idSegments = targetElementId.split('.');
@@ -51,7 +50,6 @@ export const ensureBranch = async (
       canonicalParentId,
       rawChildSegment,
       fetcher,
-      logger,
       pathRewriteMap
     );
 

@@ -5,25 +5,28 @@
  */
 
 import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
+import { FhirPackageExplorer } from 'fhir-package-explorer';
 const cachePath = './test/.test-cache';
 
 const runTest = async () => {
-  // const fsg = await FhirSnapshotGenerator.create({ cachePath, context: [
+  const fpe = await FhirPackageExplorer.create({
+    cachePath,
+    context: ['hl7.fhir.us.core@6.1.0'],
+    skipExamples: true,
+    fhirVersion: '4.0.1'
+  });
+
   const fsg = await FhirSnapshotGenerator.create(
     {
-      cachePath, 
-      context: [],
-      fhirVersion: 'R5',
-      cacheMode: 'none'
+      fpe,
+      fhirVersion: '4.0.1',
+      cacheMode: 'lazy'
     }
   );
-  const expansion = await fsg.expandValueSet('http://terminology.hl7.org/ValueSet/encounter-class');
-  // const original = await fsg.getFpe().resolve({ url: snapshot.url, resourceType: 'StructureDefinition' });
-  // fs.writeJSONSync(path.join(fsg.getCachePath(), profileId+'-applied-snapshot.json'), snapshot, { spaces: 2 });
-  // fs.writeJSONSync(path.join(fsg.getCachePath(), profileId+'-compare-snapshot.json'), original, { spaces: 2 });
-  console.log('Expansion contains', expansion.expansion?.contains?.length, 'codes');
+  const snapshot = await fsg.getSnapshot('http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient');
+  console.log('Generated snapshot for:', snapshot.url);
+  console.log('Snapshot has', snapshot.snapshot?.element?.length, 'elements');
   console.log('Done!');
-  // console.log('Output written to:', fsg.getCachePath());
 };
 
 runTest().catch((error) => {

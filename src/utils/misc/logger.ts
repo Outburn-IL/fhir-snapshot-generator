@@ -3,12 +3,13 @@
  *   Project name: fhir-snapshot-generator
  */
 
-import { ILogger, Prethrower } from '../../../types';
+import { Prethrower } from '../../../types';
+import { Logger } from '@outburn/types';
 
 /**
  * default logger uses global console methods
  */
-export const defaultLogger: ILogger = {
+export const defaultLogger: Logger = {
   info: (msg: any) => console.log(msg),
   warn: (msg: any) => console.warn(msg),
   error: (msg: any) => console.error(msg)
@@ -26,7 +27,7 @@ export const defaultPrethrow: Prethrower = (msg: Error | any): Error => {
   return error;
 };
 
-export const customPrethrower = (logger: ILogger): Prethrower => {
+export const customPrethrower = (logger: Logger): Prethrower => {
   return (msg: Error | any): Error => {
     if (msg instanceof Error) {
       logger.error(msg);

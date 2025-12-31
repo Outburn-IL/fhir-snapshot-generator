@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'fs-extra';
 import path from 'path';
 import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
+import { FhirPackageExplorer } from 'fhir-package-explorer';
 import { versionedCacheDir } from '../src/utils/misc/getVersionedCacheDir';
 
 describe('Lazy caching of snapshots', async () => {
@@ -17,9 +18,15 @@ describe('Lazy caching of snapshots', async () => {
     fs.removeSync(snapshotCachePath);
   }
   
-  const fsg = await FhirSnapshotGenerator.create({
+  const fpe = await FhirPackageExplorer.create({
     cachePath,
     context: [context],
+    skipExamples: true
+  });
+
+  const fsg = await FhirSnapshotGenerator.create({
+    fpe,
+    fhirVersion: '4.0.1',
     cacheMode: 'lazy',
   });
 
