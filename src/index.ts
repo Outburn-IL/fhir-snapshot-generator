@@ -4,15 +4,12 @@
  */
 
 import {
-  defaultLogger,
   DefinitionFetcher,
   resolveBasePackage,
   resolveFhirVersion,
   applyDiffs,
   migrateElements,
-  versionedCacheDir,
-  defaultPrethrow,
-  customPrethrower
+  versionedCacheDir
 } from './utils';
 import path from 'path';
 import fs from 'fs-extra';
@@ -28,8 +25,7 @@ import {
 import {
   SnapshotCacheMode,
   SnapshotFetcher,
-  SnapshotGeneratorConfig,
-  Prethrower
+  SnapshotGeneratorConfig
 } from '../types';
 
 import {
@@ -42,7 +38,6 @@ import {
 export class FhirSnapshotGenerator {
   private fpe: FhirPackageExplorer;
   private logger: Logger;
-  private prethrow: Prethrower;
   private cachePath: string;
   private cacheMode: SnapshotCacheMode;
   private fhirVersion: FhirVersion;
@@ -51,7 +46,6 @@ export class FhirSnapshotGenerator {
 
   private constructor(fpe: FhirPackageExplorer, cacheMode: SnapshotCacheMode, fhirVersion: FhirVersion, logger: Logger) {
     this.logger = logger;
-    this.prethrow = customPrethrower(this.logger);
     this.cacheMode = cacheMode;
     this.fhirVersion = fhirVersion;
     this.fhirCorePackage = resolveFhirVersion(fhirVersion, true) as FhirPackageIdentifier;
@@ -65,66 +59,66 @@ export class FhirSnapshotGenerator {
    * @returns - a promise that resolves to a new instance of the FhirSnapshotGenerator class
    */
   static async create(config: SnapshotGeneratorConfig): Promise<FhirSnapshotGenerator> {
-    const logger = config.logger || defaultLogger; // use provided logger or default
-    const prethrow = config.logger ? customPrethrower(logger) : defaultPrethrow;
-    
-    try {
-      const { fpe } = config;
-      if (!fpe) {
-        throw new Error('FhirPackageExplorer instance is required in config.fpe');
-      }
+    const logger = config.logger || {
+      debug: () => undefined,
+      info: () => undefined,
+      warn: () => undefined,
+      error: () => undefined
+    };
 
-      const cacheMode = config.cacheMode || 'lazy'; // default cache mode
-      const fhirVersion = resolveFhirVersion(config.fhirVersion) as FhirVersion;
-
-      // Create a new FhirSnapshotGenerator instance
-      const fsg = new FhirSnapshotGenerator(fpe, cacheMode, fhirVersion, logger);
-
-      let precache: boolean = false;
-
-      // 'ensure' and 'rebuild' cache modes both trigger a walkthrough of all structure definitions.
-      // The difference is that 'rebuild' will first delete all existing snapshots in the cache.
-      if (cacheMode === 'rebuild') {
-        precache = true;
-        // delete all existing snapshots in the cache for the packages in the context
-        const packageList = fpe.getContextPackages().map(pkg => path.join(fpe.getCachePath(), `${pkg.id}#${pkg.version}`, '.fsg.snapshots', versionedCacheDir));
-        // for each path, delete the directory if it exists
-        for (const snapshotCacheDir of packageList) {
-          if (await fs.exists(snapshotCacheDir)) {
-            fs.removeSync(snapshotCacheDir);
-          }
-        }
-      }
-
-      if (cacheMode === 'ensure') precache = true;
-
-      if (precache) {
-        logger.info(`Pre-caching snapshots in '${cacheMode}' mode...`);
-        // lookup all *profiles* in the FPE context and ensure their snapshots are cached.
-        const allSds = await fpe.lookupMeta({ resourceType: 'StructureDefinition', derivation: 'constraint' });
-        const errors: string[] = [];
-        for (const sd of allSds) {
-          const { filename, __packageId: packageId, __packageVersion: packageVersion, url } = sd;
-          try {
-            await fsg.ensureSnapshotCached(filename, packageId, packageVersion!);
-          } catch (e) {
-            errors.push(`Failed to ${cacheMode} snapshot for '${url}' in package '${packageId}@${packageVersion}': ${
-              e instanceof Error ? e.message : String(e)
-            }`
-            );
-          }
-        }
-        if (errors.length > 0) {
-          logger.error(`Errors during pre-caching snapshots (${errors.length} total):\n${errors.join('\n')}`);
-        } else {
-          logger.info(`Pre-caching snapshots in '${cacheMode}' mode completed successfully.`);
-        }
-
-      }
-      return fsg;
-    } catch (e) {
-      throw prethrow(e);
+    const { fpe } = config;
+    if (!fpe) {
+      throw new Error('FhirPackageExplorer instance is required in config.fpe');
     }
+
+    const cacheMode = config.cacheMode || 'lazy'; // default cache mode
+    const fhirVersion = resolveFhirVersion(config.fhirVersion) as FhirVersion;
+
+    // Create a new FhirSnapshotGenerator instance
+    const fsg = new FhirSnapshotGenerator(fpe, cacheMode, fhirVersion, logger);
+
+    let precache: boolean = false;
+
+    // 'ensure' and 'rebuild' cache modes both trigger a walkthrough of all structure definitions.
+    // The difference is that 'rebuild' will first delete all existing snapshots in the cache.
+    if (cacheMode === 'rebuild') {
+      precache = true;
+      // delete all existing snapshots in the cache for the packages in the context
+      const packageList = fpe.getContextPackages().map(pkg => path.join(fpe.getCachePath(), `${pkg.id}#${pkg.version}`, '.fsg.snapshots', versionedCacheDir));
+      // for each path, delete the directory if it exists
+      for (const snapshotCacheDir of packageList) {
+        if (await fs.exists(snapshotCacheDir)) {
+          fs.removeSync(snapshotCacheDir);
+        }
+      }
+    }
+
+    if (cacheMode === 'ensure') precache = true;
+
+    if (precache) {
+      logger.info(`Pre-caching snapshots in '${cacheMode}' mode...`);
+      // lookup all *profiles* in the FPE context and ensure their snapshots are cached.
+      const allSds = await fpe.lookupMeta({ resourceType: 'StructureDefinition', derivation: 'constraint' });
+      const errors: string[] = [];
+      for (const sd of allSds) {
+        const { filename, __packageId: packageId, __packageVersion: packageVersion, url } = sd;
+        try {
+          await fsg.ensureSnapshotCached(filename, packageId, packageVersion!);
+        } catch (e) {
+          errors.push(`Failed to ${cacheMode} snapshot for '${url}' in package '${packageId}@${packageVersion}': ${
+            e instanceof Error ? e.message : String(e)
+          }`
+          );
+        }
+      }
+      if (errors.length > 0) {
+        logger.error(`Errors during pre-caching snapshots (${errors.length} total):\n${errors.join('\n')}`);
+      } else {
+        logger.info(`Pre-caching snapshots in '${cacheMode}' mode completed successfully.`);
+      }
+
+    }
+    return fsg;
   };
 
   public getLogger(): Logger {
@@ -353,25 +347,21 @@ export class FhirSnapshotGenerator {
    * Get snapshot by any FSH style identifier (id, url or name), or by a metadata object.
    */
   public async getSnapshot(identifier: string | FileIndexEntryWithPkg, packageFilter?: FhirPackageIdentifier): Promise<any> {
-    try {
-      let metadata: FileIndexEntryWithPkg | undefined;
-      if (typeof identifier === 'string') {
-        // If identifier is a string, resolve it to metadata
-        metadata = await this.getMetadata(identifier, packageFilter);
-        if (!metadata) {
-          throw new Error(`StructureDefinition '${identifier}' not found in context. Could not get or generate a snapshot.`);
-        }
-      } else {
-        metadata = identifier as FileIndexEntryWithPkg;
-        if (!metadata) {
-          // create a human readable string from the metadata object
-          throw new Error(`StructureDefinition with metadata: \n${JSON.stringify(identifier, null, 2)}\nnot found in context. Could not get or generate a snapshot.`);
-        }
+    let metadata: FileIndexEntryWithPkg | undefined;
+    if (typeof identifier === 'string') {
+      // If identifier is a string, resolve it to metadata
+      metadata = await this.getMetadata(identifier, packageFilter);
+      if (!metadata) {
+        throw new Error(`StructureDefinition '${identifier}' not found in context. Could not get or generate a snapshot.`);
       }
-      return await this.getSnapshotByMeta(metadata);
-    } catch (e) {
-      throw this.prethrow(e);
+    } else {
+      metadata = identifier as FileIndexEntryWithPkg;
+      if (!metadata) {
+        // create a human readable string from the metadata object
+        throw new Error(`StructureDefinition with metadata: \n${JSON.stringify(identifier, null, 2)}\nnot found in context. Could not get or generate a snapshot.`);
+      }
     }
+    return await this.getSnapshotByMeta(metadata);
   }
 
 
@@ -381,7 +371,6 @@ export type {
   SnapshotCacheMode,
   SnapshotGeneratorConfig,
   SnapshotFetcher,
-  Prethrower,
   FhirTreeNode
 } from '../types';
 

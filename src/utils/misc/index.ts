@@ -1,4 +1,3 @@
-export { defaultLogger, defaultPrethrow, customPrethrower } from './logger';
 export { resolveFhirVersion } from './resolveFhirVersion';
 export { resolveBasePackage } from './resolveBasePackage';
 export { DefinitionFetcher } from './definitionFetcher';
