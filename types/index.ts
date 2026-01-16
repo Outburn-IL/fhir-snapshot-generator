@@ -10,9 +10,6 @@ import {
   ElementDefinition,
   Logger
 } from '@outburn/types';
-
-
-export type Prethrower = (msg: Error | any) => Error;
   
 export interface FhirTreeNode {
     id: string;
