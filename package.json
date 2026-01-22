@@ -15,6 +15,11 @@
   },
   "author": "Outburn Ltd.",
   "license": "Apache-2.0",
+  "engines": {
+    "node": "^22.21.1",
+    "npm": "^11.7.0"
+  },
+  "packageManager": "npm@11.7.0",
   "scripts": {
     "build": "npm run clean && tsup",
     "clean": "rimraf dist",
