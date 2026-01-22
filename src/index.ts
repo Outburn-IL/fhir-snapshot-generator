@@ -188,22 +188,77 @@ export class FhirSnapshotGenerator {
     return path.join(this.cachePath, `${packageId}#${packageVersion}`, '.fsg.snapshots', versionedCacheDir, filename);
   }
 
+  private isCorruptCacheError(error: unknown): boolean {
+    if (error instanceof SyntaxError) return true;
+    if (!(error instanceof Error)) return false;
+    // Common JSON parse failures for partially-written files
+    return (
+      error.message.includes('Unexpected end of JSON input') ||
+      error.message.includes('Unexpected token') ||
+      error.message.includes('JSON')
+    );
+  }
+
   /**
    * Try to get an existing cached StructureDefinition snapshot. If not found, return undefined.
    */
   private async getSnapshotFromCache(filename: string, packageId: string, packageVersion: string): Promise<any> {
     const cacheFilePath = this.getCacheFilePath(filename, packageId, packageVersion);
-    if (await fs.exists(cacheFilePath)) {
-      return await fs.readJSON(cacheFilePath);
-    } else {
+    if (!(await fs.exists(cacheFilePath))) {
       return undefined;
+    }
+
+    try {
+      // Avoid fs.readJSON directly so we can treat empty/partial files as corrupt cache.
+      const raw = await fs.readFile(cacheFilePath, 'utf8');
+      if (!raw || raw.trim().length === 0) {
+        this.logger.warn(`Cached snapshot file '${cacheFilePath}' is empty. Regenerating.`);
+        await fs.remove(cacheFilePath);
+        return undefined;
+      }
+      return JSON.parse(raw);
+    } catch (e) {
+      // If cache is corrupt (e.g., interrupted write), treat as cache-miss and regenerate.
+      if (this.isCorruptCacheError(e)) {
+        this.logger.warn(`Cached snapshot file '${cacheFilePath}' is corrupt. Regenerating. (${e instanceof Error ? e.message : String(e)})`);
+        try {
+          await fs.remove(cacheFilePath);
+        } catch {
+          // Best-effort cleanup; regeneration will proceed regardless.
+        }
+        return undefined;
+      }
+      throw e;
     }
   }
 
   private async saveSnapshotToCache(filename: string, packageId: string, packageVersion: string, snapshot: any): Promise<void> {
     const cacheFilePath = this.getCacheFilePath(filename, packageId, packageVersion);
     await fs.ensureDir(path.dirname(cacheFilePath));
-    await fs.writeJSON(cacheFilePath, snapshot);
+
+    // Write atomically to prevent partially-written/corrupt JSON if the process is interrupted.
+    const uniqueSuffix = `${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}`;
+    const tmpPath = `${cacheFilePath}.${uniqueSuffix}.tmp`;
+    try {
+      await fs.writeFile(tmpPath, JSON.stringify(snapshot));
+      try {
+        // Don't overwrite existing cache files. If another writer wins the race, keep their file.
+        await fs.move(tmpPath, cacheFilePath, { overwrite: false });
+      } catch (e) {
+        // If the destination exists now, another concurrent writer succeeded; treat as success.
+        if ((e as any)?.code === 'EEXIST' || (await fs.exists(cacheFilePath))) return;
+        throw e;
+      }
+    } finally {
+      // Best-effort cleanup if something failed before rename/move.
+      if (await fs.exists(tmpPath)) {
+        try {
+          await fs.remove(tmpPath);
+        } catch {
+          // ignore
+        }
+      }
+    }
   }
 
   /**
@@ -331,15 +386,14 @@ export class FhirSnapshotGenerator {
 
 
   private async ensureSnapshotCached(filename: string, packageId: string, packageVersion: string): Promise<void> {
-    // Check if file exists in the cache
-    const cacheFilePath = this.getCacheFilePath(filename, packageId, packageVersion);
-    try {
-      await fs.access(cacheFilePath);
-      return; // Snapshot is already cached
-    } catch {
-      // File does not exist, continue to build and cache
-      const generated = await this.generate(filename, packageId, packageVersion);
-      await this.saveSnapshotToCache(filename, packageId, packageVersion, generated); 
+    // Ensure we can *read* the cached snapshot; if it's corrupt, regenerate.
+    const cached = this.cacheMode !== 'none'
+      ? await this.getSnapshotFromCache(filename, packageId, packageVersion)
+      : undefined;
+    if (cached) return;
+    const generated = await this.generate(filename, packageId, packageVersion);
+    if (this.cacheMode !== 'none') {
+      await this.saveSnapshotToCache(filename, packageId, packageVersion, generated);
     }
   }
 

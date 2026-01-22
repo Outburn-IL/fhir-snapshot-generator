@@ -1,6 +1,6 @@
 {
   "name": "fhir-snapshot-generator",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Generate snapshots for FHIR Profiles",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
@@ -15,6 +15,11 @@
   },
   "author": "Outburn Ltd.",
   "license": "Apache-2.0",
+  "engines": {
+    "node": "^22.21.1",
+    "npm": "^11.7.0"
+  },
+  "packageManager": "npm@11.7.0",
   "scripts": {
     "build": "npm run clean && tsup",
     "clean": "rimraf dist",
@@ -65,7 +70,7 @@
     "rimraf": "^6.1.2",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.53.0",
+    "typescript-eslint": "^8.53.1",
     "vitest": "^3.2.4"
   }
 }
