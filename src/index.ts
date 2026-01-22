@@ -236,11 +236,6 @@ export class FhirSnapshotGenerator {
     const cacheFilePath = this.getCacheFilePath(filename, packageId, packageVersion);
     await fs.ensureDir(path.dirname(cacheFilePath));
 
-    // If another concurrent call already cached it, do not overwrite.
-    if (await fs.exists(cacheFilePath)) {
-      return;
-    }
-
     // Write atomically to prevent partially-written/corrupt JSON if the process is interrupted.
     const uniqueSuffix = `${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}`;
     const tmpPath = `${cacheFilePath}.${uniqueSuffix}.tmp`;
@@ -251,9 +246,7 @@ export class FhirSnapshotGenerator {
         await fs.move(tmpPath, cacheFilePath, { overwrite: false });
       } catch (e) {
         // If the destination exists now, another concurrent writer succeeded; treat as success.
-        if (await fs.exists(cacheFilePath)) {
-          return;
-        }
+        if ((e as any)?.code === 'EEXIST' || (await fs.exists(cacheFilePath))) return;
         throw e;
       }
     } finally {
