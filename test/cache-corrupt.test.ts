@@ -5,20 +5,21 @@ import { FhirSnapshotGenerator } from 'fhir-snapshot-generator';
 import { FhirPackageExplorer } from 'fhir-package-explorer';
 import { versionedCacheDir } from '../src/utils/misc/getVersionedCacheDir';
 
-describe('Corrupt snapshot cache recovery', async () => {
+describe('Corrupt snapshot cache recovery', () => {
   const cachePath = './test/.test-cache';
   const context = 'fsg.test.pkg#0.1.0';
   const snapshotCachePath = path.join(cachePath, context, '.fsg.snapshots', versionedCacheDir);
   const snapshotFilename = 'StructureDefinition-ext-hearing-loss.json';
   const snapshotFilePath = path.join(snapshotCachePath, snapshotFilename);
 
-  const fpe = await FhirPackageExplorer.create({
-    cachePath,
-    context: [context],
-    skipExamples: true
-  });
+  let fpe: FhirPackageExplorer;
 
   beforeAll(async () => {
+    fpe = await FhirPackageExplorer.create({
+      cachePath,
+      context: [context],
+      skipExamples: true
+    });
     await fs.remove(snapshotCachePath);
   }, 240000);
 
