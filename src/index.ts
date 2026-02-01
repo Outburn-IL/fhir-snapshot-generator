@@ -9,7 +9,9 @@ import {
   resolveFhirVersion,
   applyDiffs,
   migrateElements,
-  versionedCacheDir
+  versionedCacheDir,
+  singleFlight,
+  getInflightKey
 } from './utils';
 import path from 'path';
 import fs from 'fs-extra';
@@ -355,6 +357,8 @@ export class FhirSnapshotGenerator {
 
   /**
    * Get snapshot by metadata.
+   * Uses single-flight mechanism to prevent duplicate generation of the same snapshot
+   * both within the same process (in-memory) and across processes (disk locks).
    */
   private async getSnapshotByMeta(metadata: FileIndexEntryWithPkg): Promise<any> {
     const { derivation, filename, __packageId: packageId, __packageVersion: packageVersion } = metadata;
@@ -367,17 +371,46 @@ export class FhirSnapshotGenerator {
       }
       return { __corePackage: { id: packageId, version: packageVersion! }, ...sd };
     }
-    // It's a profile, return a snapshot from cache or generate a new one
-    const cached = this.cacheMode !== 'none' ? await this.getSnapshotFromCache(
-      filename,
-      packageId,
-      packageVersion!
-    ) : undefined;
-    if (cached) return cached;
-    const generated = await this.generate(filename, packageId, packageVersion!);
+
+    // It's a profile - check cache first before engaging single-flight
     if (this.cacheMode !== 'none') {
-      await this.saveSnapshotToCache(filename, packageId, packageVersion!, generated);
+      const cached = await this.getSnapshotFromCache(filename, packageId, packageVersion!);
+      if (cached) return cached;
     }
+
+    // Cache miss - use single-flight to coordinate generation
+    const inflightKey = getInflightKey(filename, packageId, packageVersion!);
+    // Only use disk locking when caching is enabled
+    const cacheFilePath = this.cacheMode !== 'none'
+      ? this.getCacheFilePath(filename, packageId, packageVersion!)
+      : undefined;
+
+    const { value: generated } = await singleFlight({
+      key: inflightKey,
+      cacheFilePath,
+      generator: async () => {
+        // Double-check cache in case another process finished while we were waiting for the lock
+        if (this.cacheMode !== 'none') {
+          const cached = await this.getSnapshotFromCache(filename, packageId, packageVersion!);
+          if (cached) return cached;
+        }
+
+        // Generate the snapshot
+        const result = await this.generate(filename, packageId, packageVersion!);
+
+        // Save to cache
+        if (this.cacheMode !== 'none') {
+          await this.saveSnapshotToCache(filename, packageId, packageVersion!, result);
+        }
+
+        return result;
+      },
+      // Callback to get cached result when waiting for external lock
+      getCached: this.cacheMode !== 'none'
+        ? () => this.getSnapshotFromCache(filename, packageId, packageVersion!)
+        : undefined
+    });
+
     return generated;
   }
 
@@ -385,16 +418,49 @@ export class FhirSnapshotGenerator {
 
 
 
+  /**
+   * Ensure a snapshot is cached for the given file.
+   * Uses single-flight mechanism to prevent duplicate generation.
+   */
   private async ensureSnapshotCached(filename: string, packageId: string, packageVersion: string): Promise<void> {
     // Ensure we can *read* the cached snapshot; if it's corrupt, regenerate.
-    const cached = this.cacheMode !== 'none'
-      ? await this.getSnapshotFromCache(filename, packageId, packageVersion)
-      : undefined;
-    if (cached) return;
-    const generated = await this.generate(filename, packageId, packageVersion);
     if (this.cacheMode !== 'none') {
-      await this.saveSnapshotToCache(filename, packageId, packageVersion, generated);
+      const cached = await this.getSnapshotFromCache(filename, packageId, packageVersion);
+      if (cached) return;
     }
+
+    // Cache miss - use single-flight to coordinate generation
+    const inflightKey = getInflightKey(filename, packageId, packageVersion);
+    // Only use disk locking when caching is enabled
+    const cacheFilePath = this.cacheMode !== 'none'
+      ? this.getCacheFilePath(filename, packageId, packageVersion)
+      : undefined;
+
+    await singleFlight({
+      key: inflightKey,
+      cacheFilePath,
+      generator: async () => {
+        // Double-check cache in case another process finished while we were waiting for the lock
+        if (this.cacheMode !== 'none') {
+          const cached = await this.getSnapshotFromCache(filename, packageId, packageVersion);
+          if (cached) return cached;
+        }
+
+        // Generate the snapshot
+        const generated = await this.generate(filename, packageId, packageVersion);
+
+        // Save to cache
+        if (this.cacheMode !== 'none') {
+          await this.saveSnapshotToCache(filename, packageId, packageVersion, generated);
+        }
+
+        return generated;
+      },
+      // Callback to get cached result when waiting for external lock
+      getCached: this.cacheMode !== 'none'
+        ? () => this.getSnapshotFromCache(filename, packageId, packageVersion)
+        : undefined
+    });
   }
 
   /**
