@@ -20,6 +20,9 @@ import path from 'path';
 /** TTL for disk-based locks in milliseconds (3 minutes) */
 const DISK_LOCK_TTL_MS = 3 * 60 * 1000;
 
+/** TTL for in-memory promises in milliseconds (3 minutes) */
+const INFLIGHT_PROMISE_TTL_MS = 3 * 60 * 1000;
+
 /** Poll interval when waiting for another process's lock */
 const LOCK_POLL_INTERVAL_MS = 100;
 
@@ -27,10 +30,37 @@ const LOCK_POLL_INTERVAL_MS = 100;
 const LOCK_WAIT_TIMEOUT_MS = DISK_LOCK_TTL_MS + 10_000; // TTL + 10 seconds buffer
 
 /**
+ * Entry in the in-flight promise map, including timestamp for TTL enforcement.
+ */
+interface InflightEntry {
+  promise: Promise<any>;
+  timestamp: number;
+}
+
+/**
  * Module-level in-memory promise map for single-flighting within the same Node process.
  * Key format: `${packageId}#${packageVersion}/${filename}` (cache-path independent)
  */
-const inflightPromises = new Map<string, Promise<any>>();
+const inflightPromises = new Map<string, InflightEntry>();
+
+/**
+ * Check if an in-flight promise entry is stale (exceeded TTL).
+ */
+function isInflightStale(entry: InflightEntry): boolean {
+  return Date.now() - entry.timestamp > INFLIGHT_PROMISE_TTL_MS;
+}
+
+/**
+ * Clean up stale entries from the in-flight promise map.
+ * Called periodically to prevent memory leaks from hanging promises.
+ */
+function cleanupStaleInflightPromises(): void {
+  for (const [key, entry] of inflightPromises) {
+    if (isInflightStale(entry)) {
+      inflightPromises.delete(key);
+    }
+  }
+}
 
 /**
  * Lock file content structure
@@ -267,12 +297,21 @@ export async function singleFlight<T>(options: SingleFlightOptions<T>): Promise<
   const { key, cacheFilePath, generator, getCached, _retryCount = 0 } = internalOptions;
   const useDiskLocking = cacheFilePath !== undefined;
 
+  // Periodically clean up stale in-flight promises to prevent memory leaks
+  cleanupStaleInflightPromises();
+
   // Layer 1: In-memory single-flight (same process)
-  const existingPromise = inflightPromises.get(key);
-  if (existingPromise) {
-    // Another call in this process is already generating
-    const value = await existingPromise;
-    return { value, wasGenerator: false };
+  const existingEntry = inflightPromises.get(key);
+  if (existingEntry) {
+    // Check if the existing promise is stale (hanging)
+    if (isInflightStale(existingEntry)) {
+      // Remove stale entry and proceed with new generation
+      inflightPromises.delete(key);
+    } else {
+      // Another call in this process is already generating
+      const value = await existingEntry.promise;
+      return { value, wasGenerator: false };
+    }
   }
 
   // Layer 2: Disk-based single-flight (cross-process) - only if caching is enabled
@@ -326,8 +365,11 @@ export async function singleFlight<T>(options: SingleFlightOptions<T>): Promise<
     }
   })();
 
-  // Register in-memory promise
-  inflightPromises.set(key, executionPromise);
+  // Register in-memory promise with timestamp for TTL tracking
+  inflightPromises.set(key, {
+    promise: executionPromise,
+    timestamp: Date.now()
+  });
 
   try {
     const value = await executionPromise;
