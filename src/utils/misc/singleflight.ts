@@ -219,6 +219,9 @@ async function waitForExternalLock(
   return false;
 }
 
+/** Maximum number of retries when lock acquisition fails */
+const MAX_LOCK_RETRIES = 5;
+
 /**
  * Result of single-flight execution
  */
@@ -244,6 +247,14 @@ export interface SingleFlightOptions<T> {
 }
 
 /**
+ * Internal options that include retry tracking
+ */
+interface SingleFlightInternalOptions<T> extends SingleFlightOptions<T> {
+  /** Current retry attempt (internal use only) */
+  _retryCount?: number;
+}
+
+/**
  * Execute a function with single-flight semantics.
  * Ensures only one execution happens at a time for the same key,
  * both within the process (in-memory) and across processes (disk locks).
@@ -252,7 +263,8 @@ export interface SingleFlightOptions<T> {
  * @returns The result from the generator or from waiting on another execution
  */
 export async function singleFlight<T>(options: SingleFlightOptions<T>): Promise<SingleFlightResult<T>> {
-  const { key, cacheFilePath, generator, getCached } = options;
+  const internalOptions = options as SingleFlightInternalOptions<T>;
+  const { key, cacheFilePath, generator, getCached, _retryCount = 0 } = internalOptions;
   const useDiskLocking = cacheFilePath !== undefined;
 
   // Layer 1: In-memory single-flight (same process)
@@ -289,9 +301,15 @@ export async function singleFlight<T>(options: SingleFlightOptions<T>): Promise<
       // Fall through to try generating ourselves
       acquiredLock = await tryAcquireDiskLock(lockPath);
       if (!acquiredLock) {
-        // Still can't acquire lock, recursively try single-flight again
-        // This handles the case where another process picked up the stale lock
-        return singleFlight(options);
+        // Check retry limit to prevent infinite recursion
+        if (_retryCount >= MAX_LOCK_RETRIES) {
+          throw new Error(
+            `Failed to acquire lock for '${key}' after ${MAX_LOCK_RETRIES} retries. ` +
+            `Another process may be holding the lock at '${lockPath}'.`
+          );
+        }
+        // Retry single-flight with incremented retry count
+        return singleFlight({ ...options, _retryCount: _retryCount + 1 } as SingleFlightInternalOptions<T>);
       }
     }
   }
