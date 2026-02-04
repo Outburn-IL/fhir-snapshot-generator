@@ -1,6 +1,6 @@
 {
   "name": "fhir-snapshot-generator",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Generate snapshots for FHIR Profiles",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
