@@ -24,6 +24,11 @@ FSG supports multiple FHIR versions, package-context-aware resolution of cross-p
 npm install fhir-snapshot-generator
 ```
 
+## Requirements
+
+- Node.js: 20.19+ / 22.12+ / 24+
+- npm: 10.2.3+ (npm 11.x recommended)
+
 ## Usage
 
 ### 1. Create a FhirPackageExplorer instance

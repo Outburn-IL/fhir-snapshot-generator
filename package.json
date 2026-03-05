@@ -16,10 +16,10 @@
   "author": "Outburn Ltd.",
   "license": "Apache-2.0",
   "engines": {
-    "node": "^20.10.0 || ^22.0.0",
+    "node": "^20.19.0 || ^22.12.0 || ^24.0.0",
     "npm": "^10.2.3 || ^11.0.0"
   },
-  "packageManager": "npm@10.2.3",
+  "packageManager": "npm@11.7.0",
   "scripts": {
     "build": "npm run clean && tsup",
     "clean": "rimraf dist",
@@ -59,18 +59,21 @@
   },
   "dependencies": {
     "fhir-package-explorer": "^1.9.2",
-    "fs-extra": "^11.3.3"
+    "fs-extra": "^11.3.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",
     "@outburn/types": "^0.1.0",
     "@types/fs-extra": "^11.0.4",
-    "eslint": "^9.39.2",
-    "fsh-sushi": "^3.17.0",
-    "rimraf": "^6.1.2",
+    "@types/json5": "^2.2.0",
+    "@types/range-parser": "^1.2.7",
+    "@types/yargs-parser": "^21.0.3",
+    "eslint": "^9.39.3",
+    "fsh-sushi": "^3.18.0",
+    "rimraf": "^6.1.3",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.55.0",
+    "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.18"
   }
 }
