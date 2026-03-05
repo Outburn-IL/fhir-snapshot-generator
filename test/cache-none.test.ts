@@ -11,7 +11,7 @@ describe('No caching of snapshots', async () => {
   const context = 'fsg.test.pkg#0.1.0';
 
   const snapshotCachePath = path.join(cachePath, context, '.fsg.snapshots', versionedCacheDir);
-  const dummySnapshot = 'StructureDefinition-ext-hearing-loss.json';
+  const dummySnapshot = 'StructureDefinition-ext-hearing-loss.snapshot';
 
   // delete the snapshot cache directory if it exists
   if (fs.existsSync(snapshotCachePath)) {

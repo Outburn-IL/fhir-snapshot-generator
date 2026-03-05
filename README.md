@@ -91,8 +91,8 @@ Cached artifacts are stored under:
 ```
 <cachePath>/<packageId>#<packageVersion>/.fsg.snapshots/<FSG version>/
 ```
-- Filenames mirror originals in `<cachePath>/<packageId>#<packageVersion>/package`.
-- FSG Version directory uses major.minor.x (e.g. `1.4.x`).
+- Filenames mirror originals in `<cachePath>/<packageId>#<packageVersion>/package` (same basename), but use the `.snapshot` extension (since v2.3.0).
+- FSG Version directory uses major.minor.x (e.g. `2.3.x`).
 
 **DEVELOPER NOTICE** – Any change that affects snapshot generation output MUST increment the minor version so previously cached results are not silently reused.
 

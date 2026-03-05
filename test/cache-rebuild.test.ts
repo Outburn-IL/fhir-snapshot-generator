@@ -12,7 +12,7 @@ describe('Re-build all snapshots in context', async () => {
 
   const pkgCachePath = path.join(cachePath, context, 'package');
   const snapshotCachePath = path.join(cachePath, context, '.fsg.snapshots', versionedCacheDir);
-  const dummySnapshot = 'StructureDefinition-SimpleMonopolyExtension.json';
+  const dummySnapshot = 'StructureDefinition-SimpleMonopolyExtension.snapshot';
 
   beforeAll(async () => {
     // delete the snapshot cache directory if it exists
@@ -43,17 +43,18 @@ describe('Re-build all snapshots in context', async () => {
   // check that the snapshot cache contains the same filenames as the package itself
   it('should cache all snapshots for the entire package', async () => {
     const packageFiles = fs.readdirSync(pkgCachePath).filter(file => file.startsWith('StructureDefinition-') && file.endsWith('.json'));
-    const snapshotFiles = fs.readdirSync(snapshotCachePath).filter(file => file.startsWith('StructureDefinition-') && file.endsWith('.json'));
+    const snapshotFiles = fs.readdirSync(snapshotCachePath).filter(file => file.startsWith('StructureDefinition-') && file.endsWith('.snapshot'));
 
-    expect(snapshotFiles.length).toBe(packageFiles.length);
-    expect(snapshotFiles.sort()).toEqual(packageFiles.sort());
+    const expectedSnapshotFiles = packageFiles.map(file => `${path.parse(file).name}.snapshot`);
+
+    expect(snapshotFiles.length).toBe(expectedSnapshotFiles.length);
+    expect(snapshotFiles.sort()).toEqual(expectedSnapshotFiles.sort());
   });
 
   afterAll(async () => {
     // ensure the dummy file was overwritten
-    it('should overwrite the dummy snapshot cache file', () => {
-      expect(fs.readFileSync(path.join(snapshotCachePath, dummySnapshot), 'utf8')).toHaveProperty('resourceType', 'StructureDefinition');
-    });
+    const dummy = fs.readJSONSync(path.join(snapshotCachePath, dummySnapshot));
+    expect(dummy).toHaveProperty('resourceType', 'StructureDefinition');
   });
 
 },480000); // 8min timeout for all tests

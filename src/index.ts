@@ -186,8 +186,18 @@ export class FhirSnapshotGenerator {
     });
   }
 
+  private getSnapshotCacheRelativePath(sourceFilename: string): string {
+    // Cached snapshots should not use a .json extension, otherwise validators may scan them
+    // as package resources and report duplicates.
+    const normalized = sourceFilename.replace(/\\/g, '/');
+    const parsed = path.posix.parse(normalized);
+    const snapshotBasename = `${parsed.name}.snapshot`;
+    return parsed.dir ? path.posix.join(parsed.dir, snapshotBasename) : snapshotBasename;
+  }
+
   private getCacheFilePath(filename: string, packageId: string, packageVersion: string): string {
-    return path.join(this.cachePath, `${packageId}#${packageVersion}`, '.fsg.snapshots', versionedCacheDir, filename);
+    const cacheRelativePath = this.getSnapshotCacheRelativePath(filename);
+    return path.join(this.cachePath, `${packageId}#${packageVersion}`, '.fsg.snapshots', versionedCacheDir, cacheRelativePath);
   }
 
   private isCorruptCacheError(error: unknown): boolean {
