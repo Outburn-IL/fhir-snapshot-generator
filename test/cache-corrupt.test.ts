@@ -9,7 +9,7 @@ describe('Corrupt snapshot cache recovery', () => {
   const cachePath = './test/.test-cache';
   const context = 'fsg.test.pkg#0.1.0';
   const snapshotCachePath = path.join(cachePath, context, '.fsg.snapshots', versionedCacheDir);
-  const snapshotFilename = 'StructureDefinition-ext-hearing-loss.json';
+  const snapshotFilename = 'StructureDefinition-ext-hearing-loss.snapshot';
   const snapshotFilePath = path.join(snapshotCachePath, snapshotFilename);
 
   let fpe: FhirPackageExplorer;

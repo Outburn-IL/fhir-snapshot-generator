@@ -11,7 +11,7 @@ describe('Lazy caching of snapshots', async () => {
   const context = 'fsg.test.pkg#0.1.0';
 
   const snapshotCachePath = path.join(cachePath, context, '.fsg.snapshots', versionedCacheDir);
-  const dummySnapshot = 'StructureDefinition-ext-hearing-loss.json';
+  const dummySnapshot = 'StructureDefinition-ext-hearing-loss.snapshot';
 
   // delete the snapshot cache directory if it exists
   if (fs.existsSync(snapshotCachePath)) {
@@ -55,9 +55,8 @@ describe('Lazy caching of snapshots', async () => {
     // re-generate the snapshot
     await fsg.getSnapshot('http://example.org/StructureDefinition/ext-hearing-loss');
     // ensure the dummy file was not overwritten
-    it('should leave the dummy snapshot cache file untouched', () => {
-      expect(fs.readFileSync(path.join(snapshotCachePath, dummySnapshot), 'utf8')).toHaveProperty('resourceType', 'dummy');
-    });
+    const dummy = fs.readJSONSync(path.join(snapshotCachePath, dummySnapshot));
+    expect(dummy).toHaveProperty('resourceType', 'dummy');
     // delete the dummy snapshot cache file
     fs.removeSync(path.join(snapshotCachePath, dummySnapshot));
   });
